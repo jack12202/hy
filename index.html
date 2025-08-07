@@ -1,0 +1,570 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="description" content="GPT Plus 官方 iOS 通道代充，¥149.99/月，微信直充，5 分钟自动到帐" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>GPT Plus 充值服务</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- 简单的 CSS，只依赖系统字体 -->
+  <style>
+    :root {
+      --primary: #10b981;
+      --primary-dark: #047857;
+      --accent: #f59e0b;
+      --gray-300: #d4d4d8;
+      --gray-500: #6b7280;
+      --radius: 24px;
+    }
+
+    /* 背景渐变 & 全局排版 */
+    body {
+      margin: 0;
+      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont,
+        "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+      background: linear-gradient(125deg, #00bfae 0%, #1e3a8a 100%);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    /* 中心卡片 */
+    .card {
+      width: 100%;
+      max-width: 620px;
+      background: rgba(255, 255, 255, 0.15);
+      border-radius: var(--radius);
+      box-shadow: 0 6px 36px rgba(0, 0, 0, 0.15);
+      backdrop-filter: blur(12px);
+      overflow: hidden;
+    }
+
+    /* 卡片 – 顶部彩条、标题、徽章 */
+    .card-header {
+      padding: 48px 40px 32px;
+      text-align: center;
+    }
+    .card-header h1 {  margin-bottom:6px;
+      font-size: 1.8rem;
+      margin: 0 0 8px;
+      font-weight: 700;
+    }
+    .badges {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 12px;
+    }
+    .badge {
+      padding: 4px 12px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      border-radius: 9999px;
+      background: #ffffff1a;
+      backdrop-filter: blur(12px);
+      border: 1px solid #ffffff30;
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    /* 指标区域 */
+    .stats {
+      display: flex;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 24px;
+      margin: 36px 0 12px;
+    }
+    .stat {
+      flex: 1 1 140px;
+      text-align: center;
+    }
+    .stat-value {
+      font-size:1rem;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .stat-label {
+      font-size: 0.75rem;
+      color: var(--gray-300);
+    }
+
+    /* 白底表单区 */
+    .form-area {
+      background: #ffffff;
+      color: #000;
+      padding: 40px 40px 48px;
+    }
+
+    /* 步骤条 */
+    .steps {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-bottom: 32px;
+    }
+    .steps li {
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      background: var(--gray-300);
+      color: var(--gray-500);
+      font-weight: 700;
+      display: grid;
+      place-items: center;
+      font-size: 0.9rem;
+    }
+    .steps li.active {
+      background: var(--primary);
+      color: #fff;
+    }
+
+    /* 表单控件 */
+    .field-label {
+      font-size: 0.9rem;
+      font-weight: 600;
+      margin-bottom: 6px;
+      display: block;
+    }
+    .input {
+      width: 100%;
+      padding: 14px 16px;
+      font-size: 0.95rem;
+      border: 2px solid var(--gray-300);
+      border-radius: 10px;
+      transition: border 0.25s;
+    }
+    .input:focus {
+      outline: none;
+      border-color: var(--primary);
+    }
+    .hint {
+      margin-top: 6px;
+      font-size: 0.75rem;
+      color: var(--gray-500);
+    }
+
+    /* CTA 按钮 */
+    .btn {
+      display: block;
+      width: 100%;
+      margin-top: 26px;
+      padding: 16px 0;
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      background: var(--primary);
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: background 0.25s;
+    }
+    .btn:hover {
+      background: var(--primary-dark);
+    }
+
+    /* 页脚 */
+    footer {
+      text-align: center;
+      font-size: 0.7rem;
+      color: var(--gray-300);
+      padding: 18px 0 24px;
+    }
+
+    /* 小屏优化 */
+    @media (max-width: 480px) {
+      .card-header { padding: 40px 24px 24px; }
+      .form-area   { padding: 32px 24px; }
+    }
+  
+  /* ======== 价格 + CTA ======== */
+  .price{ margin-top:4px; display:flex; justify-content:center; align-items:flex-end; gap:8px; 
+    display:flex;
+    justify-content:center;
+    align-items:flex-end;
+    gap:8px;
+    margin-top:6px;
+  }
+  .price-val{
+    font-size:2.8rem;
+    font-weight:700;
+    line-height:1;
+  }
+  .price-tag{
+    font-size:.8rem;
+    font-weight:600;
+    padding:4px 10px;
+    border-radius:9999px;
+    background:var(--accent);
+    color:#fff;
+  }
+  .price-tag .icon {
+    margin-left: .25rem;
+    font-size: .9rem;
+  }
+  
+  .price-anchor {
+    margin-top: 8px;
+    font-size: 0.85rem;
+    color: #e5e7eb;
+    opacity: 0.9;
+  }
+  
+  .price-anchor span {
+    font-weight: 700;
+    color: #fbbf24;
+  }
+  
+  .price-anchor-sub {
+    margin-top: 2px;
+    font-size: 0.8rem;
+    color: #e5e7eb;
+    opacity: 0.85;
+  }
+  
+  .price-anchor-sub strong {
+    font-weight: 700;
+    color: #fbbf24;
+  }
+
+  .btn-buy{
+    width:100%;
+    margin:22px 0 6px;
+    padding:18px 0;
+    font-size:1.12rem;
+    font-weight:800;
+    letter-spacing:.02em;
+    color:#fff;
+    background: linear-gradient(90deg, #10b981, #047857);
+    border:none;
+    border-radius:14px;
+    cursor:pointer;
+    transition: transform .15s ease, filter .2s ease;
+    box-shadow:0 10px 24px rgba(16,185,129,.35);
+    animation: ctaPulse 2.2s ease-in-out infinite;
+  }
+  .btn-buy:hover{ filter: brightness(1.05); transform: scale(1.05); }
+  .btn-buy:active{ transform: translateY(0); }
+  .btn-buy:focus-visible{ outline: 3px solid #6ee7b7; outline-offset: 2px; }
+
+  /* —— 说明文字 —— */
+  .note-weak{
+    margin:10px 0 4px;
+    text-align:center;
+    font-size:.82rem;
+    color:#e5e7eb;
+    opacity:.9;
+  }
+  .note-link{
+    color:#bfdbfe;
+    text-decoration:underline;
+  }
+  
+
+  /* —— 客服浮窗 —— */
+  .cs-fab{
+    position:fixed; right:22px; bottom:22px;
+    width:54px; height:54px; border-radius:50%;
+    background:#ffffff; color:#111; border:none;
+    box-shadow:0 6px 26px rgba(0,0,0,.2);
+    font-size:22px; cursor:pointer;
+  }
+  .cs-drawer{
+    position:fixed; right:22px; bottom:92px;
+    width:260px; background:#fff; color:#111;
+    border-radius:14px; box-shadow:0 12px 36px rgba(0,0,0,.22);
+    transform:translateY(20px); opacity:0; pointer-events:none;
+    transition:all .2s ease;
+  }
+  .cs-drawer.open{ transform:translateY(0); opacity:1; pointer-events:auto; }
+  .cs-head{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 14px; border-bottom:1px solid #eee;
+  }
+  .cs-head button{ background:transparent; border:none; font-size:16px; cursor:pointer; }
+  .cs-body{ padding:12px 14px 16px; font-size:.92rem; }
+  .cs-body p{ margin:10px 0; }
+  .copy{
+    margin-left:8px; padding:4px 8px; font-size:.78rem;
+    border-radius:8px; border:1px solid #e5e7eb; background:#f9fafb; cursor:pointer;
+  }
+  .qr{ display:block; width:100%; border-radius:10px; margin-top:8px; }
+
+  /* ======== 首屏精简：隐藏激活码验证区 ======== */
+  .form-area, .steps { display:none !important; }
+  /* ===== CTA 强化 ===== */
+  @keyframes ctaPulse {
+    0%,100% { box-shadow: 0 10px 24px rgba(16,185,129,.28); transform: translateY(0); }
+    50%     { box-shadow: 0 16px 36px rgba(16,185,129,.42); transform: translateY(-1px); }
+  }
+
+  /* ===== 移动端浮窗 CTA ===== */
+  .cta-sticky{
+    position:fixed; left:16px; right:16px; bottom:16px; z-index:50;
+    display:none;
+    text-align:center; font-weight:800; font-size:1.02rem; color:#fff;
+    padding:14px 0; border-radius:14px; text-decoration:none;
+    background: linear-gradient(90deg, #10b981, #047857);
+    box-shadow:0 10px 24px rgba(16,185,129,.35);
+  }
+  @media (max-width: 640px){ .cta-sticky{ display:block; } }
+  .steps-mini{
+    display:flex; flex-wrap:wrap; gap:8px 10px; justify-content:center;
+    align-items:center; margin:8px 0 4px;
+  }
+  .step-pill{
+    font-size:.78rem; font-weight:600; color:#1f2937;
+    padding:6px 10px; border-radius:9999px;
+    background:rgba(255,255,255,.85); border:1px solid rgba(0,0,0,.06);
+    box-shadow:0 2px 6px rgba(0,0,0,.06);
+  }
+  .steps-link{
+    margin-left:6px; font-size:.78rem; color:#bfdbfe; text-decoration:underline;
+  }
+
+  .flow-mask{
+    position:fixed; inset:0; background:rgba(0,0,0,.35);
+    backdrop-filter: blur(2px);
+    display:none; align-items:center; justify-content:center; z-index:60;
+  }
+  .flow-mask.show{ display:flex; }
+  .flow-modal{
+    width:min(92vw,560px); background:#fff; color:#111; border-radius:16px;
+    box-shadow:0 24px 64px rgba(0,0,0,.25); overflow:hidden;
+  }
+  .flow-head{
+    display:flex; justify-content:space-between; align-items:center;
+    padding:12px 16px; border-bottom:1px solid #eee;
+  }
+  .flow-head button{ background:transparent; border:none; font-size:18px; cursor:pointer; }
+  .flow-body{ padding:14px 18px 18px; }
+  .flow-body ol{ margin:0 0 6px 18px; }
+  .flow-body li{ margin:8px 0; line-height:1.6; }
+  .tips{ margin-top:6px; font-size:.9rem; color:#6b7280; }
+  /* —— 优化对齐：垂直左对齐列表 —— */
+  .buy-notes {
+    list-style: none;
+    padding: 0;
+    margin: 12px auto;
+    max-width: 360px;
+    display: block;
+    text-align: left;
+  }
+  .buy-notes li {
+    display: flex;
+    align-items: center;
+    margin: 6px 0;
+    font-size: 0.9rem;
+    color: #e5e7eb;
+    opacity: 0.9;
+  }
+  .buy-notes li::before {
+    content: '✔';
+    margin-right: 8px;
+    color: #34d399;
+    font-size: 1rem;
+  }
+  /* —— flow-modal 客服入口样式 —— */
+  .flow-support { margin-top:16px; padding-top:12px; border-top:1px solid #e5e7eb; }
+  .flow-support .support-title {
+    font-size:0.92rem; font-weight:600; color:#111827; margin-bottom:6px;
+  }
+  .flow-support p {
+    margin:4px 0; font-size:0.88rem; color:#374151;
+  }
+  .flow-support .copy-btn {
+    margin-left:8px; padding:2px 6px; font-size:0.78rem;
+    border:1px solid #d1d5db; background:#f9fafb; border-radius:6px;
+    cursor:pointer; transition:background .2s;
+  }
+  .flow-support .copy-btn:hover { background:#e5e7eb; }
+  /* 手机端：把客服浮窗提到置底 CTA 之上 */
+  @media (max-width: 640px) {
+    /* 悬浮 CTA 高度约 56px + 底部间距16px = 72px，这里提到 80px 更保险 */
+    .cs-fab {
+      bottom: 80px !important;
+    }
+  }
+</style>
+</head>
+
+<body>
+  <main class="card">
+    <!-- 顶部 -->
+    <header class="card-header">
+      <h1>GPT Plus 充值服务</h1>
+      <!-- 🔥 价格 + CTA -->
+      <div class="price">
+        <span class="price-val">¥159</span>
+        <span class="price-tag">月付·限时优惠 <span class="icon">🔒</span></span>
+      </div>
+      <div class="price-anchor">
+        对比野卡渠道（≈¥185） → 立省 <span>¥26</span>
+      </div>
+      <div class="price-anchor-sub">
+        折合每天仅 <strong>¥5.3</strong>
+      </div>
+
+      <button class="btn-buy" id="buyBtn" aria-label="立即购买卡密">🛒 立即购买卡密</button>
+      <div class="steps-mini">
+        <span class="step-pill">1 下单卡密</span>
+        <span class="step-pill">2 提交账号</span>
+        <span class="step-pill">3 自动到帐</span>
+        <a class="steps-link" href="#" id="openFlow">查看流程</a>
+      </div>
+      <p class="note-weak">已有卡密？
+        <a class="note-link" href="https://www.ow520.com">点此输入激活码</a>
+      </p>
+
+      <ul class="buy-notes">
+        <li>官方 iOS 通道 · 微信直充 · 5 分钟自动到帐</li>
+        <li>无需提供账号密码，支持新老账号</li>
+        <li>如遇问题，右下角可随时联系人工客服</li>
+      </ul>
+      
+      <div class="badges">
+        <span class="badge">📱 官方 iOS 通道</span>
+        <span class="badge">🔒 不封号</span>
+        <span class="badge">🛡️ 不泄露密码</span>
+        <span class="badge">🎥 视频教程</span>
+      </div>
+
+      <div class="stats">
+        <div class="stat">
+          <div class="stat-value">50,000+</div>
+          <div class="stat-label">满意用户</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">99.9%</div>
+          <div class="stat-label">成功率</div>
+        </div>
+        <div class="stat">
+          <div class="stat-value">24/7</div>
+          <div class="stat-label">在线客服</div>
+        </div>
+      </div>
+    </header>
+
+    <!-- 表单 -->
+    <section class="form-area">
+      <ol class="steps">
+        <li class="active">1</li>
+        <li>2</li>
+        <li>3</li>
+      </ol>
+
+      <label class="field-label" for="code">激活码</label>
+      <input
+        id="code"
+        name="code"
+        type="text"
+        placeholder="请输入激活码，例如：GPT-DEMO-1234-ABCD"
+        class="input"
+      />
+
+      <p class="hint">激活码由字母、数字和横线组成，不区分大小写</p>
+
+      <button class="btn" onclick="submitCode()">验证激活码</button>
+    </section>
+
+    <footer>
+      本平台仅为国内用户提供代充值通道，采用 iOS 官方渠道，安全无忧<br />
+      GPT Plus 自动化处理，极简 3 步完成充值
+    </footer>
+  </main>
+
+  <!-- 客服浮窗 -->
+  <button class="cs-fab" id="csFab" aria-label="联系客服">💬</button>
+  <div class="cs-drawer" id="csDrawer" aria-hidden="true">
+    <div class="cs-head">
+      <strong>联系客服</strong>
+      <button id="csClose" aria-label="关闭">✕</button>
+    </div>
+    <div class="cs-body">
+      <p>微信：<b id="wx">mmzi0723</b>
+        <button class="copy" onclick="copyText('wx')">复制</button></p>
+      <p>QQ：<b id="qq">122026860</b>
+        <button class="copy" onclick="copyText('qq')">复制</button></p>
+      <!-- 如有二维码可自行替换图片路径 -->
+      <!-- <img src="/assets/wechat-qr.jpg" alt="微信二维码" class="qr"> -->
+    </div>
+  </div>
+
+  <script>
+    function submitCode() {
+      const code = document.getElementById("code").value.trim();
+      if (!code) {
+        alert("请先填写激活码");
+        return;
+      }
+      // 跳转到激活码验证页面
+      window.location.href = `https://www.ow520.com/?code=${code}`;
+    }
+
+    document.getElementById('buyBtn')?.addEventListener('click', function () {
+      window.location.href = 'https://sc.i6ls.com//details/CF5AAE95';
+    });
+
+    const fab = document.getElementById('csFab');
+    const drawer = document.getElementById('csDrawer');
+    const closeBtn = document.getElementById('csClose');
+
+    function toggleDrawer(show){
+      if(show){ drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false'); }
+      else    { drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); }
+    }
+    fab?.addEventListener('click', ()=> toggleDrawer(true));
+    closeBtn?.addEventListener('click', ()=> toggleDrawer(false));
+
+    function copyText(id){
+      const text = document.getElementById(id)?.textContent || '';
+      navigator.clipboard.writeText(text).then(()=> {
+        if(window.Toastify){ Toastify({ text: '已复制：' + text, duration: 1500 }).showToast(); }
+        else alert('已复制：' + text);
+      });
+    }
+    window.copyText = copyText;
+  </script>
+  <!-- 移动端底部浮窗 CTA -->
+  <a href="https://sc.i6ls.com//details/CF5AAE95" class="cta-sticky" role="button" aria-label="¥159 立即购买">¥159 立即购买</a>
+  <div class="flow-mask" id="flowMask" aria-hidden="true">
+    <div class="flow-modal">
+      <div class="flow-head">
+        <strong>充值流程</strong>
+        <button id="closeFlow" aria-label="关闭">✕</button>
+      </div>
+      <div class="flow-body">
+        <ol>
+          <li><b>下单卡密：</b>点击"立即购买卡密"，完成微信支付。</li>
+          <li><b>提交账号：</b>按提示填写/确认你的 GPT 账号（无需提供密码）。</li>
+          <li><b>自动到帐：</b>系统走 iOS 官方通道，约 5 分钟完成开通。</li>
+        </ol>
+        <p class="tips">充值过程中遇到问题，请联系人工协助。</p>
+  <div class="flow-support">
+    <p class="support-title">客服入口：</p>
+    <p>微信：<b id="flow-wx">mmzi0723</b>
+       <button class="copy-btn" onclick="copyText('flow-wx')">复制</button>
+    </p>
+    <p>QQ：<b id="flow-qq">122026860</b>
+       <button class="copy-btn" onclick="copyText('flow-qq')">复制</button>
+    </p>
+  </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const openFlow = document.getElementById('openFlow');
+    const flowMask = document.getElementById('flowMask');
+    const closeFlow = document.getElementById('closeFlow');
+    openFlow?.addEventListener('click', (e)=>{ e.preventDefault(); flowMask?.classList.add('show'); flowMask?.setAttribute('aria-hidden','false'); });
+    closeFlow?.addEventListener('click', ()=>{ flowMask?.classList.remove('show'); flowMask?.setAttribute('aria-hidden','true'); });
+    flowMask?.addEventListener('click', (e)=>{ if(e.target===flowMask){ flowMask.classList.remove('show'); flowMask.setAttribute('aria-hidden','true'); }});
+  </script>
+</body>
+</html>

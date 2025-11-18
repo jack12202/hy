@@ -6,7 +6,6 @@
 <meta content="全网最快的GPT4代充平台，支付宝/微信直接购买，3分钟全自动到账，稳定防封。" name="description"/>
 <meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport"/>
 <title>ChatGPT Plus 极速充值中心 | 24小时自动发货 ⚡️</title>
-<!-- 简单的 CSS，只依赖系统字体 -->
 <style>
     :root {
       --primary: #8b5cf6;      /* 午夜蓝绿主色（Teal） */
@@ -881,12 +880,11 @@ body.modal-open{ overflow:hidden; }
 }
 .sticky-note .cta-mini{
   all:unset; cursor:pointer; font-weight:700; padding:.42rem .75rem; border-radius:10px;
-  background: linear-gradient(180deg, #a78bfa 0%, #8b5cf6 100%);
-  border:1px solid var(--brand-outline-strong); color:#fff;
+  border:1px solid rgba(255,255,255,.65); color:#fff;
 }
 .sticky-note .cta-outline{
   all:unset; cursor:pointer; font-weight:700; padding:.42rem .75rem; border-radius:10px;
-  border:1px solid var(--brand-outline); color:#fff; background: var(--brand-tint);
+  border:1px solid var(--brand-outline); color:#fff;
 }
 
 /* 价格·涨价说明 弹窗 */
@@ -1013,7 +1011,6 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
 </head>
 <body>
 <main class="card">
-<!-- 顶部 -->
 <header class="card-header">
 <div class="hero">
 <div class="brand-badge" aria-label="光年升级计划 官方充值平台">
@@ -1024,10 +1021,8 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
         <stop offset="1" stop-color="#8b5cf6"/>
       </linearGradient>
     </defs>
-    <!-- 上升箭头（升级感） -->
     <path d="M30 8 L40 8 L40 18" fill="none" stroke="url(#lg)" stroke-width="4" stroke-linecap="round"/>
     <path d="M40 8 L25 23" fill="none" stroke="url(#lg)" stroke-width="4" stroke-linecap="round"/>
-    <!-- "光"字抽象：竖 + 横 + 撇 -->
     <path d="M14 10 L14 36" stroke="#aef3ff" stroke-width="4" stroke-linecap="round"/>
     <path d="M8 22 L26 22" stroke="#aef3ff" stroke-width="4" stroke-linecap="round"/>
     <path d="M10 36 C16 30, 22 28, 28 28" stroke="#aef3ff" stroke-width="4" stroke-linecap="round" fill="none"/>
@@ -1041,7 +1036,6 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
 <div class="notice-bar-top">📢 当前价 ¥188 ｜ 官方通道更稳</div>
 <div class="hero-divider"></div>
 </div>
-<!-- 成本暴涨通知 -->
 <div class="cost-notice">
 <div class="cost-notice-icon">📢</div>
 <div class="cost-notice-content">
@@ -1067,12 +1061,10 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
 </div>
 </div>
 </div>
-<!-- 🔥 价格 + CTA -->
 <div class="price">
 <span class="price-val">¥188</span>
 <span class="price-tag">月付·标准版</span>
 </div>
-<!-- 购买和充值按钮组 -->
 <div class="button-group">
   <button aria-label="立即购买卡密" class="btn-buy" id="buyBtn">🛒 立即购买 (¥188)</button>
   <button class="btn-recharge" id="rechargeBtn">💳 进入自动充值系统</button>
@@ -1110,7 +1102,6 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
 </div>
 </div>
 </header>
-<!-- 表单 -->
 <section class="form-area">
 <ol class="steps">
 <li class="active">1</li>
@@ -1123,11 +1114,12 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
 <button class="btn" onclick="submitCode()">验证激活码</button>
 </section>
 <footer>
-      面向国内用户的代充值通道，采用 iOS 官方渠道；自动化处理，三步完成。
-    </footer>
+      <div style="margin-bottom:10px;">全网最快的自动充值系统，支持支付宝/微信；3分钟极速到账。</div>
+      <a href="/blog/" style="color: rgba(255,255,255,0.6); text-decoration: none; font-size: 0.85rem; border-bottom: 1px solid rgba(139, 92, 246, 0.4); padding-bottom: 2px; transition: all 0.2s;" onmouseover="this.style.color='#fff';this.style.borderColor='#8b5cf6'" onmouseout="this.style.color='rgba(255,255,255,0.6)';this.style.borderColor='rgba(139, 92, 246, 0.4)'">
+        ⚡️ 充值失败解决方案 / 帮助中心
+      </a>
+</footer>
 </main>
-<!-- 客服浮窗 -->
-
 <div aria-hidden="true" class="cs-drawer" id="csDrawer">
 <div class="cs-head">
 <strong>联系人工</strong>
@@ -1143,8 +1135,6 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
 <button class="copy" onclick="copyText('qq')">复制</button></p>
 </div>
 </div>
-<!-- 如有二维码可自行替换图片路径 -->
-<!-- <img src="/assets/wechat-qr.jpg" alt="微信二维码" class="qr"> -->
 </div>
 </div>
 <script>
@@ -1192,7 +1182,6 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
     }
     window.copyText = copyText;
   </script>
-<!-- 移动端底部浮窗 CTA -->
 <a aria-label="¥188 立即购买" class="cta-sticky" href="#" role="button" id="mobileBuyBtn">¥188 立即购买</a>
 <script>
     const openFlow = document.getElementById('openFlow');
@@ -1332,7 +1321,6 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
   window.helpCenter = { open: openHelp, close: closeHelp, setTab: setTab };
 })();
 </script>
-<!-- 统一弹窗：为什么不是更便宜 -->
 <div class="modal-mask" id="whyModal" aria-hidden="true">
   <div class="modal-card" role="dialog" aria-labelledby="whyTitle" tabindex="-1">
     <button class="modal-close" id="whyClose" aria-label="关闭">×</button>
@@ -1383,7 +1371,6 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
   </div>
 </div>
 
-<!-- 充值网站指引（不依赖外部接口） -->
 <div class="rg-mask" id="rechargeGuide" aria-hidden="true">
   <div class="rg-card" role="dialog" aria-labelledby="rgTitle" tabindex="-1">
     <button class="rg-close" id="rgClose" aria-label="关闭">×</button>
@@ -1400,7 +1387,6 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
   </div>
 </div>
 
-<!-- 充值系统选择弹窗 -->
 <div class="rs-mask" id="rechargeSystemModal" aria-hidden="true">
   <div class="rs-card" role="dialog" aria-labelledby="rsTitle" tabindex="-1">
     <button class="rs-close" id="rsClose" aria-label="关闭">×</button>
@@ -1433,7 +1419,6 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
   </div>
 </div>
 
-<!-- 缺货公告弹窗 -->
 <div class="modal-mask" id="outOfStockModal" aria-hidden="true">
   <div class="modal-card" role="dialog" aria-labelledby="outOfStockTitle" tabindex="-1">
     <button class="modal-close" id="outOfStockClose" aria-label="关闭">×</button>
@@ -1465,13 +1450,11 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
   </div>
 </div>
 
-<!-- 官方价格通知 & 合规说明（完整版） -->
 <div class="proof-mask" id="officialProof" aria-hidden="true">
   <div class="proof-card" role="dialog" aria-labelledby="proofTitle" tabindex="-1">
     <button class="proof-close" id="proofClose" aria-label="关闭">×</button>
     <h3 class="proof-title" id="proofTitle">官方价格通知 & 合规说明</h3>
 
-    <!-- 官方价格通知（摘要） -->
     <section class="proof-sec" id="proof-official">
       <h4>官方价格通知（摘要）</h4>
       <ul class="proof-list">
@@ -1484,14 +1467,12 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
         <button class="proof-btn proof-btn-ghost" id="toggleProofImg">查看官方通知截图</button>
       </div>
 
-      <!-- 截图悬浮窗 -->
       <div class="proof-imgwrap" id="proofImgWrap">
         <button class="img-close" id="imgClose" aria-label="关闭图片">×</button>
         <img class="proof-img" id="proofImg" src="gpt 图片.png" alt="官方价格通知截图">
       </div>
     </section>
 
-    <!-- 关于"低汇率国家"的说明 -->
     <section class="proof-sec" id="proof-forex">
       <h4>关于"低汇率国家"的说明</h4>
       <ul class="proof-list">
@@ -1501,7 +1482,6 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
       <p class="proof-hint">目前没有 <strong>长期可复用</strong> 的低汇率方案；我们仅提供 <strong>官方通道</strong>，含 <strong>售后与风险处置</strong>。</p>
     </section>
 
-    <!-- 结尾 CTA -->
     <section class="proof-sec">
       <div class="proof-actions">
         <button class="proof-btn proof-btn-ghost" id="proofCopyWx">复制微信：<span class="wx">Jiage01888</span></button>
@@ -1784,7 +1764,6 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
 })();
 </script>
 
-<!-- 缺货弹窗逻辑 -->
 <script>
 (function(){
   function $(s){ return document.querySelector(s); }
@@ -1849,7 +1828,6 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
 })();
 </script>
 
-<!-- 充值系统选择弹窗逻辑 -->
 <script>
 (function(){
   function $(s){ return document.querySelector(s); }

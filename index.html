@@ -17,13 +17,13 @@
       --radius: 22px;
 
       /* Brand (蓝绿) */
-      --brand-500:#14B8A6; /* 主色 */
-      --brand-600:#0EA5E9; /* hover/强调 */
-      --brand-glass: rgba(20,184,166,.18); /* 玻璃条/轻底 */
+      --brand-500:#8b5cf6; /* 主色 */
+      --brand-600:#7c3aed; /* hover/强调 */
+      --brand-glass: rgba(139, 92, 246, 0.18); /* 玻璃条/轻底 */
 
       /* Accent (冷青点缀，更贴合底色) */
-      --accent-500:#22D3EE;
-      --accent-600:#38BDF8;
+      --accent-500:#a78bfa;
+      --accent-600:#c4b5fd;
 
       /* Neutral */
       --overlay:#0B1220;                    /* 深夜蓝弹窗/底栏背景 */
@@ -43,15 +43,15 @@
         "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", sans-serif;
       background:
         /* 大散景光斑 */
-        radial-gradient(260px 180px at 18% 22%, rgba(255,255,255,.10), transparent 70%),
+        radial-gradient(260px 180px at 18% 22%, rgba(255,255,255,.12), transparent 70%),
         radial-gradient(220px 160px at 68% 16%, rgba(255,255,255,.08), transparent 72%),
-        radial-gradient(180px 140px at 82% 42%, rgba(255,255,255,.06), transparent 75%),
-        radial-gradient(140px 120px at 32% 68%, rgba(255,255,255,.07), transparent 78%),
-        /* 冷青光晕层 */
-        radial-gradient(1200px 700px at 12% -8%, rgba(34,211,238,.18), transparent 60%),
-        radial-gradient(1000px 600px at 90% 12%, rgba(20,184,166,.14), transparent 60%),
-        /* 深青蓝底色 */
-        linear-gradient(135deg, #071a22 0%, #0a2430 45%, #0d2e3a 100%);
+        radial-gradient(180px 140px at 82% 42%, rgba(255,255,255,.07), transparent 75%),
+        radial-gradient(140px 120px at 32% 68%, rgba(255,255,255,.08), transparent 78%),
+        /* 霓虹紫光晕层 */
+        radial-gradient(1200px 700px at 12% -8%, rgba(167,139,250,.2), transparent 60%),
+        radial-gradient(1000px 600px at 90% 12%, rgba(124,58,237,.16), transparent 60%),
+        /* 深紫底色 */
+        linear-gradient(135deg, #120b2b 0%, #1a0f38 45%, #1f1144 100%);
       min-height: 100vh;
       display: flex;
       align-items: center;
@@ -66,8 +66,8 @@
       width: 100%;
       max-width: 620px;
       background:
-        linear-gradient(180deg, rgba(20,184,166,.10) 0%, rgba(56,189,248,.08) 100%),
-        rgba(255,255,255,.08);
+        linear-gradient(180deg, rgba(139,92,246,.12) 0%, rgba(167,139,250,.08) 100%),
+        rgba(21,15,40,.85);
       border-radius: var(--radius);
       box-shadow: 0 6px 36px rgba(0, 0, 0, 0.10);
       backdrop-filter: blur(16px) saturate(130%);
@@ -86,7 +86,7 @@
     padding:1px; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
     -webkit-mask-composite: xor; mask-composite: exclude;
-    background: linear-gradient(135deg, rgba(58,167,176,.9), rgba(87,191,198,.7), rgba(34,197,221,.85));
+    background: linear-gradient(135deg, rgba(167,139,250,.9), rgba(147,112,219,.75), rgba(124,58,237,.85));
   }
 
     /* 卡片 – 顶部彩条、标题、徽章 */
@@ -364,7 +364,7 @@
     font-weight:800;
     letter-spacing:.02em;
     color:#fff;
-    background: linear-gradient(180deg, #1fb6cf 0%, #14b8a6 100%);
+    background: linear-gradient(180deg, #a78bfa 0%, #8b5cf6 100%);
     border:none;
     border-radius:14px;
     cursor:pointer;
@@ -480,7 +480,7 @@
     display:none;
     text-align:center; font-weight:800; font-size:1.02rem; color:#fff;
     padding:14px 0; border-radius:14px; text-decoration:none;
-    background: linear-gradient(180deg, #1fb6cf 0%, #14b8a6 100%);
+    background: linear-gradient(180deg, #a78bfa 0%, #8b5cf6 100%);
     box-shadow:0 6px 14px rgba(14,165,233,.18);
   }
   @media (max-width: 640px){ .cta-sticky{ display:none; } }

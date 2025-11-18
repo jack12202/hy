@@ -1,46 +1,93 @@
 <!DOCTYPE html>
+
 <html lang="zh">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="description" content="GPT Plus 官方 iOS 通道代充，¥149.99/月，微信直充，5 分钟自动到帐" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>GPT Plus 充值服务</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-
-  <!-- 简单的 CSS，只依赖系统字体 -->
-  <style>
+<meta charset="utf-8"/>
+<meta content="GPT Plus 官方 iOS 通道代充，¥188/月，微信直充，5 分钟自动到帐" name="description"/>
+<meta content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" name="viewport"/>
+<title>GPT Plus 充值平台❗</title>
+<!-- 简单的 CSS，只依赖系统字体 -->
+<style>
     :root {
-      --primary: #10b981;
-      --primary-dark: #047857;
-      --accent: #f59e0b;
-      --gray-300: #d4d4d8;
-      --gray-500: #6b7280;
-      --radius: 24px;
+      --primary: #14b8a6;      /* 午夜蓝绿主色（Teal） */
+      --primary-dark: #0ea5e9; /* 靛青蓝强调 */
+      --accent: #06b6d4;       /* 霓虹青 */
+      --gray-300: #cbd5e1;     /* 冷灰 */
+      --gray-500: #64748b;
+      --radius: 22px;
+
+      /* Brand (蓝绿) */
+      --brand-500:#14B8A6; /* 主色 */
+      --brand-600:#0EA5E9; /* hover/强调 */
+      --brand-glass: rgba(20,184,166,.18); /* 玻璃条/轻底 */
+
+      /* Accent (冷青点缀，更贴合底色) */
+      --accent-500:#22D3EE;
+      --accent-600:#38BDF8;
+
+      /* Neutral */
+      --overlay:#0B1220;                    /* 深夜蓝弹窗/底栏背景 */
+      --surface-glass: rgba(255,255,255,.10);/* 玻璃描边 */
+      --white-85: rgba(255,255,255,.85);     /* 玻璃白填充 */
+      --text-strong:#ffffff;                 /* 浅色文字 */
+      --text-muted: rgba(255,255,255,.78);
     }
 
     /* 背景渐变 & 全局排版 */
+    * {
+      box-sizing: border-box;
+    }
     body {
       margin: 0;
-      font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont,
+      font-family: system-ui, -apple-system, BlinkMacSystemFont,
         "Segoe UI", "Helvetica Neue", Arial, "Noto Sans", sans-serif;
-      background: linear-gradient(125deg, #00bfae 0%, #1e3a8a 100%);
+      background:
+        /* 大散景光斑 */
+        radial-gradient(260px 180px at 18% 22%, rgba(255,255,255,.10), transparent 70%),
+        radial-gradient(220px 160px at 68% 16%, rgba(255,255,255,.08), transparent 72%),
+        radial-gradient(180px 140px at 82% 42%, rgba(255,255,255,.06), transparent 75%),
+        radial-gradient(140px 120px at 32% 68%, rgba(255,255,255,.07), transparent 78%),
+        /* 冷青光晕层 */
+        radial-gradient(1200px 700px at 12% -8%, rgba(34,211,238,.18), transparent 60%),
+        radial-gradient(1000px 600px at 90% 12%, rgba(20,184,166,.14), transparent 60%),
+        /* 深青蓝底色 */
+        linear-gradient(135deg, #071a22 0%, #0a2430 45%, #0d2e3a 100%);
       min-height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
       color: #fff;
+      -webkit-text-size-adjust: 100%;
+      -webkit-tap-highlight-color: transparent;
     }
 
     /* 中心卡片 */
     .card {
       width: 100%;
       max-width: 620px;
-      background: rgba(255, 255, 255, 0.15);
+      background:
+        linear-gradient(180deg, rgba(20,184,166,.10) 0%, rgba(56,189,248,.08) 100%),
+        rgba(255,255,255,.08);
       border-radius: var(--radius);
-      box-shadow: 0 6px 36px rgba(0, 0, 0, 0.15);
-      backdrop-filter: blur(12px);
+      box-shadow: 0 6px 36px rgba(0, 0, 0, 0.10);
+      backdrop-filter: blur(16px) saturate(130%);
+      -webkit-backdrop-filter: blur(16px) saturate(130%);
       overflow: hidden;
+      border: 1px solid rgba(255,255,255,.35);
+      position: relative;
     }
+  /* 金属渐变描边（双描边：外白、内金属） */
+  .card::before{
+    content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+    border: 1px solid rgba(255,255,255,.45);
+  }
+  .card::after{
+    content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none;
+    padding:1px; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+    -webkit-mask-composite: xor; mask-composite: exclude;
+    background: linear-gradient(135deg, rgba(58,167,176,.9), rgba(87,191,198,.7), rgba(34,197,221,.85));
+  }
 
     /* 卡片 – 顶部彩条、标题、徽章 */
     .card-header {
@@ -52,24 +99,64 @@
       margin: 0 0 8px;
       font-weight: 700;
     }
+    .brand-badge{
+      display:flex; align-items:center; justify-content:center; gap:12px;
+      margin: 2px auto 12px;
+      padding: 0;
+      border-radius: 0;
+      background: transparent;
+      border: 0;
+      box-shadow: none;
+      width: fit-content;
+    }
+    .brand-icon{ width: 32px; height: 32px; display:block; }
+    .brand-name{ font-weight:900; color:#fff; letter-spacing:.02em; font-size:1.05rem; }
+    .brand-sub{ font-size:.85rem; color:#d1f4ff; opacity:.85; margin-left:6px; }
+    /* Hero 组合：统一节奏与层级 */
+    .hero{ display:flex; flex-direction:column; align-items:center; gap:8px; }
+    .hero h1{ margin: 2px 0 0; }
+    .hero-divider{ width:min(440px,88%); height:1px; background: rgba(255,255,255,.12); margin: 2px 0 0; border-radius:1px; }
+    .hero .notice-bar-top{ margin: 4px 0 0; font-size:.85rem; color:#cfeff6; }
+    .brand-title {
+      margin: 4px 0 10px;
+      font-size: 0.95rem;
+      font-weight: 700;
+      color: var(--text-muted);
+      text-align: center;
+    }
     .badges {
       display: flex;
       flex-wrap: wrap;
       justify-content: center;
       gap: 12px;
     }
-    .badge {
-      padding: 4px 12px;
-      font-size: 0.75rem;
-      font-weight: 600;
-      border-radius: 9999px;
-      background: #ffffff1a;
-      backdrop-filter: blur(12px);
-      border: 1px solid #ffffff30;
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
-    }
+      .badge {
+    padding: 4px 8px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    border-radius: 9999px;
+    background: var(--white-85);
+    color:#1f2937;
+    border: 1px solid var(--surface-glass);
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    box-shadow: none;
+    width: 95px;
+    justify-content: center;
+    white-space: nowrap;
+  }
+  .badge.clickable {
+    background: linear-gradient(135deg, var(--brand-600) 0%, var(--brand-500) 100%);
+    border: 1px solid rgba(34,211,238,.45);
+    box-shadow: 0 2px 8px rgba(14,165,233,.30);
+    transition: all 0.2s ease;
+  }
+  .badge.clickable:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(14,165,233,.40);
+    background: linear-gradient(135deg, var(--brand-600) 0%, var(--brand-500) 100%);
+  }
 
     /* 指标区域 */
     .stats {
@@ -158,14 +245,16 @@
       font-size: 1.05rem;
       font-weight: 700;
       color: #fff;
-      background: var(--primary);
+      background: linear-gradient(135deg, var(--brand-600) 0%, var(--brand-500) 100%);
       border: none;
       border-radius: 12px;
       cursor: pointer;
-      transition: background 0.25s;
+      transition: background 0.25s, box-shadow .25s, transform .15s;
     }
     .btn:hover {
-      background: var(--primary-dark);
+      filter: brightness(1.06);
+      box-shadow: 0 8px 24px rgba(139,92,246,.35);
+      transform: translateY(-1px);
     }
 
     /* 页脚 */
@@ -180,6 +269,68 @@
     @media (max-width: 480px) {
       .card-header { padding: 40px 24px 24px; }
       .form-area   { padding: 32px 24px; }
+      
+      /* 价格区域优化 */
+      .price {
+        margin-top: 8px;
+        gap: 6px;
+      }
+      .price-val {
+        font-size: 2.2rem;
+      }
+      .price-tag {
+        font-size: 0.75rem;
+        padding: 3px 8px;
+      }
+      
+      /* 按钮组移动端优化 */
+      .button-group {
+        flex-direction: column;
+        gap: 8px;
+        margin: 20px 0 8px;
+      }
+      .button-group .btn-buy,
+      .button-group .btn-recharge {
+        margin: 0;
+        padding: 16px 0;
+        font-size: 1.05rem;
+      }
+      
+      /* 步骤优化 */
+      .steps-mini {
+        gap: 6px 8px;
+        margin: 8px 0 6px;
+      }
+      .step-pill {
+        font-size: 0.75rem;
+        padding: 5px 8px;
+      }
+      .steps-link {
+        font-size: 0.75rem;
+        margin-left: 4px;
+      }
+      
+      /* 徽章优化 */
+      .badges {
+        gap: 8px;
+        margin-top: 16px;
+      }
+      .badge {
+        font-size: 0.7rem;
+        padding: 3px 8px;
+      }
+      
+      /* 统计优化 */
+      .stats {
+        gap: 16px;
+        margin: 24px 0 8px;
+      }
+      .stat-value {
+        font-size: 0.9rem;
+      }
+      .stat-label {
+        font-size: 0.7rem;
+      }
     }
   
   /* ======== 价格 + CTA ======== */
@@ -191,8 +342,8 @@
     margin-top:6px;
   }
   .price-val{
-    font-size:2.8rem;
-    font-weight:700;
+    font-size:2.4rem;
+    font-weight:900;
     line-height:1;
   }
   .price-tag{
@@ -200,36 +351,9 @@
     font-weight:600;
     padding:4px 10px;
     border-radius:9999px;
-    background:var(--accent);
+    background: rgba(233,196,106,.16);
     color:#fff;
-  }
-  .price-tag .icon {
-    margin-left: .25rem;
-    font-size: .9rem;
-  }
-  
-  .price-anchor {
-    margin-top: 8px;
-    font-size: 0.85rem;
-    color: #e5e7eb;
-    opacity: 0.9;
-  }
-  
-  .price-anchor span {
-    font-weight: 700;
-    color: #fbbf24;
-  }
-  
-  .price-anchor-sub {
-    margin-top: 2px;
-    font-size: 0.8rem;
-    color: #e5e7eb;
-    opacity: 0.85;
-  }
-  
-  .price-anchor-sub strong {
-    font-weight: 700;
-    color: #fbbf24;
+    border: 1px solid var(--surface-glass);
   }
 
   .btn-buy{
@@ -240,25 +364,74 @@
     font-weight:800;
     letter-spacing:.02em;
     color:#fff;
-    background: linear-gradient(90deg, #10b981, #047857);
+    background: linear-gradient(180deg, #1fb6cf 0%, #14b8a6 100%);
     border:none;
     border-radius:14px;
     cursor:pointer;
     transition: transform .15s ease, filter .2s ease;
-    box-shadow:0 10px 24px rgba(16,185,129,.35);
-    animation: ctaPulse 2.2s ease-in-out infinite;
+    box-shadow:0 6px 14px rgba(14,165,233,.18);
+    animation: none;
   }
-  .btn-buy:hover{ filter: brightness(1.05); transform: scale(1.05); }
+  .btn-buy:hover{ filter: brightness(1.05); transform: translateY(-2px); }
   .btn-buy:active{ transform: translateY(0); }
-  .btn-buy:focus-visible{ outline: 3px solid #6ee7b7; outline-offset: 2px; }
+  .btn-buy:focus-visible{ outline: 3px solid var(--brand-500); outline-offset: 2px; }
+
+  /* 按钮组布局 */
+  .button-group{
+    display: flex;
+    gap: 12px;
+    margin: 22px 0 8px;
+  }
+  .button-group .btn-buy{
+    flex: 1.2;
+    margin: 0;
+  }
+  .button-group .btn-recharge{
+    flex: 1;
+    margin: 0;
+  }
+
+  /* 购买说明文字 */
+  .buy-note{
+    margin: 8px 0 4px;
+    text-align: center;
+    font-size: .85rem;
+    color: rgba(255,255,255,.85);
+    opacity: .9;
+  }
+
+  /* 进入充值系统按钮 */
+  .btn-recharge{
+    width:100%;
+    margin: 16px 0 6px;
+    padding: 14px 0;
+    font-size: 1rem;
+    font-weight: 700;
+    letter-spacing: .02em;
+    color: #fff;
+    background: linear-gradient(135deg, rgba(255,255,255,.15) 0%, rgba(255,255,255,.08) 100%);
+    border: 1px solid rgba(255,255,255,.25);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: all .2s ease;
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+  .btn-recharge:hover{ 
+    background: linear-gradient(135deg, rgba(255,255,255,.22) 0%, rgba(255,255,255,.12) 100%);
+    border-color: rgba(255,255,255,.35);
+    transform: translateY(-1px);
+  }
+  .btn-recharge:active{ transform: translateY(0); }
+  .btn-recharge:focus-visible{ outline: 2px solid rgba(255,255,255,.5); outline-offset: 2px; }
 
   /* —— 说明文字 —— */
   .note-weak{
     margin:10px 0 4px;
     text-align:center;
     font-size:.82rem;
-    color:#e5e7eb;
-    opacity:.9;
+    color:#cfeff6;
+    opacity:.95;
   }
   .note-link{
     color:#bfdbfe;
@@ -266,14 +439,6 @@
   }
   
 
-  /* —— 客服浮窗 —— */
-  .cs-fab{
-    position:fixed; right:22px; bottom:22px;
-    width:54px; height:54px; border-radius:50%;
-    background:#ffffff; color:#111; border:none;
-    box-shadow:0 6px 26px rgba(0,0,0,.2);
-    font-size:22px; cursor:pointer;
-  }
   .cs-drawer{
     position:fixed; right:22px; bottom:92px;
     width:260px; background:#fff; color:#111;
@@ -291,17 +456,23 @@
   .cs-body p{ margin:10px 0; }
   .copy{
     margin-left:8px; padding:4px 8px; font-size:.78rem;
-    border-radius:8px; border:1px solid #e5e7eb; background:#f9fafb; cursor:pointer;
+    border-radius:8px; border:1px solid rgba(6,182,212,.45); background: rgba(6,182,212,.18); color:#0f172a; cursor:pointer;
   }
+  .qq-toggle-btn{
+    width:100%; margin-top:8px; padding:6px 8px; font-size:.8rem;
+    border:1px solid rgba(6,182,212,.45); background: rgba(6,182,212,.18); border-radius:6px;
+    cursor:pointer; color:#0f172a; transition:background .2s;
+  }
+  .qq-toggle-btn:hover{ background: rgba(6,182,212,.28); }
+  .qq-content{ margin-top:8px; }
   .qr{ display:block; width:100%; border-radius:10px; margin-top:8px; }
+  
 
   /* ======== 首屏精简：隐藏激活码验证区 ======== */
   .form-area, .steps { display:none !important; }
   /* ===== CTA 强化 ===== */
-  @keyframes ctaPulse {
-    0%,100% { box-shadow: 0 10px 24px rgba(16,185,129,.28); transform: translateY(0); }
-    50%     { box-shadow: 0 16px 36px rgba(16,185,129,.42); transform: translateY(-1px); }
-  }
+  /* 移除呼吸光晕动画，保持更克制的视觉 */
+  @keyframes ctaPulse { 0%{opacity:1} 100%{opacity:1} }
 
   /* ===== 移动端浮窗 CTA ===== */
   .cta-sticky{
@@ -309,10 +480,10 @@
     display:none;
     text-align:center; font-weight:800; font-size:1.02rem; color:#fff;
     padding:14px 0; border-radius:14px; text-decoration:none;
-    background: linear-gradient(90deg, #10b981, #047857);
-    box-shadow:0 10px 24px rgba(16,185,129,.35);
+    background: linear-gradient(180deg, #1fb6cf 0%, #14b8a6 100%);
+    box-shadow:0 6px 14px rgba(14,165,233,.18);
   }
-  @media (max-width: 640px){ .cta-sticky{ display:block; } }
+  @media (max-width: 640px){ .cta-sticky{ display:none; } }
   .steps-mini{
     display:flex; flex-wrap:wrap; gap:8px 10px; justify-content:center;
     align-items:center; margin:8px 0 4px;
@@ -320,11 +491,15 @@
   .step-pill{
     font-size:.78rem; font-weight:600; color:#1f2937;
     padding:6px 10px; border-radius:9999px;
-    background:rgba(255,255,255,.85); border:1px solid rgba(0,0,0,.06);
-    box-shadow:0 2px 6px rgba(0,0,0,.06);
+    background: var(--white-85); border:1px solid var(--surface-glass);
+    box-shadow: none;
+    width: 95px; text-align: center;
+    display: inline-block;
+    white-space: nowrap;
   }
   .steps-link{
-    margin-left:6px; font-size:.78rem; color:#bfdbfe; text-decoration:underline;
+    margin-left:6px; font-size:.78rem; color:#aef3ff; text-decoration:underline;
+    text-underline-offset:2px;
   }
 
   .flow-mask{
@@ -346,7 +521,18 @@
   .flow-body ol{ margin:0 0 6px 18px; }
   .flow-body li{ margin:8px 0; line-height:1.6; }
   .tips{ margin-top:6px; font-size:.9rem; color:#6b7280; }
-  /* —— 优化对齐：垂直左对齐列表 —— */
+  .tips.highlight{ 
+    background: var(--brand-glass);
+    color: var(--text-strong);
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--surface-glass);
+    font-weight: 600;
+    text-align: center;
+    margin: 16px 0;
+    box-shadow: none;
+  }
+  /* —— 优化对齐：文字左对齐，椭圆按钮对齐 —— */
   .buy-notes {
     list-style: none;
     padding: 0;
@@ -360,14 +546,40 @@
     align-items: center;
     margin: 6px 0;
     font-size: 0.9rem;
-    color: #e5e7eb;
+    color: #d6f7ff;
     opacity: 0.9;
+    position: relative;
+    padding-left: 1.25rem;
   }
   .buy-notes li::before {
-    content: '✔';
-    margin-right: 8px;
-    color: #34d399;
-    font-size: 1rem;
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 0.55em;
+    width: 0.45rem;
+    height: 0.45rem;
+    border-radius: 50%;
+    background: #fff;
+  }
+  .buy-notes li.highlight {
+    background: var(--brand-glass);
+    color: var(--text-strong);
+    padding: 12px 16px;
+    border-radius: 10px;
+    border: 1px solid var(--surface-glass);
+    font-weight: 600;
+    margin: 16px 0;
+    box-shadow: none;
+    cursor: pointer;
+    transition: all 0.2s ease;
+  }
+  .buy-notes li.highlight:hover {
+    transform: translateY(-1px);
+    box-shadow: none;
+  }
+  .buy-notes li.highlight::before {
+    content: '💬';
+    color: var(--brand-500);
   }
   /* —— flow-modal 客服入口样式 —— */
   .flow-support { margin-top:16px; padding-top:12px; border-top:1px solid #e5e7eb; }
@@ -379,123 +591,555 @@
   }
   .flow-support .copy-btn {
     margin-left:8px; padding:2px 6px; font-size:0.78rem;
-    border:1px solid #d1d5db; background:#f9fafb; border-radius:6px;
+    border:1px solid rgba(99,102,241,.45); background: rgba(99,102,241,.18); color:#fff; border-radius:6px;
     cursor:pointer; transition:background .2s;
   }
-  .flow-support .copy-btn:hover { background:#e5e7eb; }
-  /* 手机端：把客服浮窗提到置底 CTA 之上 */
-  @media (max-width: 640px) {
-    /* 悬浮 CTA 高度约 56px + 底部间距16px = 72px，这里提到 80px 更保险 */
-    .cs-fab {
-      bottom: 80px !important;
+  .flow-support .copy-btn:hover { background: rgba(99,102,241,.28); }
+  .flow-qq-toggle-btn{
+    width:100%; margin-top:8px; padding:6px 8px; font-size:.8rem;
+    border:1px solid rgba(99,102,241,.45); background: rgba(99,102,241,.18); border-radius:6px;
+    cursor:pointer; color:#fff; transition:background .2s;
+  }
+  .flow-qq-toggle-btn:hover{ background: rgba(99,102,241,.28); }
+  .flow-qq-content{ margin-top:8px; }
+  /* 成本暴涨通知样式 */
+  .cost-notice {
+    background: var(--brand-glass);
+    border: 2px solid var(--surface-glass);
+    border-radius: 16px;
+    padding: 20px 24px;
+    margin: 20px 0;
+    display: flex;
+    align-items: flex-start;
+    gap: 16px;
+    box-shadow: none;
+    animation: costNoticePulse 3s ease-in-out infinite;
+  }
+  @keyframes costNoticePulse {
+    0%, 100% { 
+      box-shadow: none;
+      transform: scale(1);
+    }
+    50% { 
+      box-shadow: none;
+      transform: scale(1.01);
     }
   }
+  .cost-notice-icon {
+    font-size: 2rem;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+  .cost-notice-content {
+    color: var(--text-strong);
+    flex: 1;
+  }
+  .cost-notice-title {
+    font-size: 1.1rem;
+    font-weight: 700;
+    margin-bottom: 12px;
+    color: #dbfbff;
+  }
+  .cost-notice-main {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .cost-notice-item {
+    font-size: 0.95rem;
+    line-height: 1.4;
+    display: flex;
+    align-items: flex-start;
+    gap: 8px;
+  }
+  .cost-notice-label {
+    font-weight: 600;
+    color: var(--text-strong);
+    flex-shrink: 0;
+    min-width: 80px;
+  }
+  .cost-notice-item strong {
+    color: #dc2626;
+    font-weight: 700;
+  }
+  .copy-inline {
+    background: rgba(255, 255, 255, 0.2);
+    color: var(--text-strong);
+    border: 1px solid rgba(255, 255, 255, 0.3);
+    padding: 3px 6px;
+    border-radius: 4px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    margin-left: 8px;
+    flex-shrink: 0;
+  }
+  .copy-inline:hover {
+    background: rgba(255, 255, 255, 0.3);
+  }
+
+
+  /* 手机端：把客服浮窗提到置底 CTA 之上 */
+  @media (max-width: 640px) {
+    
+    /* 成本通知移动端优化 */
+    .cost-notice {
+      padding: 12px 16px;
+      margin: 12px 0;
+      gap: 8px;
+      flex-direction: column;
+      text-align: center;
+    }
+    .cost-notice-icon {
+      font-size: 1.5rem;
+      margin: 0 auto 6px;
+    }
+    .cost-notice-content {
+      width: 100%;
+    }
+    .cost-notice-title {
+      font-size: 0.95rem;
+      margin-bottom: 8px;
+      text-align: center;
+    }
+    .cost-notice-main {
+      gap: 6px;
+    }
+    .cost-notice-item {
+      font-size: 0.85rem;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 6px;
+      text-align: left;
+      padding: 3px 0;
+    }
+    .cost-notice-label {
+      min-width: 70px;
+      font-size: 0.8rem;
+      flex-shrink: 0;
+    }
+    
+    /* 复制按钮移动端优化 */
+    .copy-inline {
+      margin-left: 4px;
+      padding: 2px 4px;
+      font-size: 0.65rem;
+    }
+  }
+  
+  /* 超小屏幕优化 */
+  @media (max-width: 375px) {
+    .cost-notice {
+      padding: 10px 14px;
+      margin: 10px 0;
+    }
+    .cost-notice-title {
+      font-size: 0.9rem;
+      margin-bottom: 6px;
+    }
+    .cost-notice-item {
+      font-size: 0.8rem;
+      flex-direction: row;
+      align-items: flex-start;
+      gap: 5px;
+      padding: 2px 0;
+    }
+    .cost-notice-label {
+      min-width: 65px;
+      font-size: 0.75rem;
+    }
+    .copy-inline {
+      margin-left: 3px;
+      padding: 1px 3px;
+      font-size: 0.6rem;
+    }
+  }
+
+
+
+/* 压缩首屏：隐藏大公告卡片，仅保留细公告条 */
+.cost-notice{ display:none !important; }
+  .notice-bar-top{
+  margin: 6px auto 2px;
+  display:flex; align-items:center; justify-content:center;
+  max-width:520px;
+  padding:0; border-radius:0;
+  background: transparent;
+  color:#aef3ff; font-weight:700; border: 0;
+  box-shadow: none;
+  font-size:.92rem;
+}
+.small-risk{
+  margin:8px 0 2px; text-align:center; color: rgba(255,255,255,.9);
+  font-size:.9rem;
+}
+
+/* 底部公告条 + 弹窗（保持与现有风格兼容） */
+.sticky-note{
+  position:fixed; left:0; right:0; bottom:0; z-index:30;
+  display:flex; align-items:center; justify-content:center; gap:.8rem; flex-wrap:wrap;
+  padding:.7rem 1rem; background:rgba(255,255,255,.92);
+  border-top:1px solid rgba(0,0,0,.06); backdrop-filter:saturate(140%) blur(4px);
+  font-size:14px; color:#111;
+}
+  .sticky-note .cta-mini{
+  all:unset; cursor:pointer; font-weight:800; padding:.45rem .8rem; border-radius:10px;
+  background: linear-gradient(180deg, #1fb6cf 0%, #14b8a6 100%);
+  color:#fff; border:1px solid rgba(14,165,233,.45);
+}
+  .sticky-note .cta-outline{
+  all:unset; cursor:pointer; font-weight:700; padding:.42rem .75rem; border-radius:10px;
+  border:1px solid rgba(31,182,207,.45); color:#d1f4ff; background: rgba(31,182,207,.12);
+}
+.modal-mask{ position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:50; padding:16px; }
+.modal-mask.show{ display:flex; }
+.modal-card{ width:min(680px,96vw); background: linear-gradient(180deg, rgba(10,36,48,.92), rgba(9,30,40,.92)); color:#e6f7fb; border-radius:16px; padding:20px 20px 16px;
+  border:1px solid rgba(31,182,207,.35); box-shadow:0 20px 60px rgba(0,0,0,.35); backdrop-filter: blur(8px) saturate(120%); -webkit-backdrop-filter: blur(8px) saturate(120%); position:relative; }
+.modal-card::after{ content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; padding:1px; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; background: linear-gradient(135deg, rgba(31,182,207,.85), rgba(20,184,166,.75), rgba(56,189,248,.75)); }
+.modal-card h3{ margin:.2rem 0 1rem; font-size:20px }
+.modal-card p{ line-height:1.7; margin:.4rem 0 1rem }
+.modal-footer{ display:flex; justify-content:flex-end; }
+.modal-close{ position:absolute; transform:translate(650px,-10px); background:#111827; color:#fff; border:none; padding:.35rem .55rem; border-radius:8px; cursor:pointer; }
+
+/* 细公告条（保持简洁） */
+.notice-bar-top{
+  margin: 6px auto 2px; display:flex; align-items:center; justify-content:center;
+  max-width:520px; padding:0; border-radius:0;
+  background: transparent;
+  color: #aef3ff; font-weight:700; border: 0;
+  box-shadow: none; font-size:.92rem;
+}
+.small-risk{ margin:8px 0 2px; text-align:center; color:rgba(255,255,255,.9); font-size:.9rem; }
+/* 底部公告条（全宽） */
+.sticky-note{
+  position:fixed; left:0; right:0; bottom:0; z-index:30;
+  display:flex; align-items:center; justify-content:center; gap:.8rem; flex-wrap:wrap;
+  padding:.7rem 1rem; background:rgba(255,255,255,.92);
+  border-top:1px solid rgba(0,0,0,.06); backdrop-filter:saturate(140%) blur(4px);
+  font-size:14px; color:#111;
+}
+.sticky-note .cta-mini{
+  all:unset; cursor:pointer; font-weight:800; padding:.45rem .8rem; border-radius:10px;
+  border:1px solid rgba(255,255,255,.65); color:#fff;
+}
+.sticky-note .cta-outline{
+  all:unset; cursor:pointer; font-weight:700; padding:.42rem .75rem; border-radius:10px;
+  border:1px solid rgba(0,0,0,.25); color:#111; background:rgba(255,255,255,.5);
+}
+/* 帮助中心 Modal */
+.help-mask{ position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:80; padding:16px; }
+.help-mask.show{ display:flex; }
+.help-card{
+  width:min(760px,96vw); max-height:min(88vh, 1200px); overflow:auto;
+  background: linear-gradient(180deg, rgba(10,36,48,.92), rgba(9,30,40,.92)); color:#e6f7fb; border-radius:16px; padding:16px 16px 12px;
+  border:1px solid rgba(31,182,207,.35); box-shadow:0 20px 60px rgba(0,0,0,.35); backdrop-filter: blur(8px) saturate(120%); -webkit-backdrop-filter: blur(8px) saturate(120%); position:relative;
+}
+.help-card::after{ content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; padding:1px; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; background: linear-gradient(135deg, rgba(31,182,207,.85), rgba(20,184,166,.75), rgba(56,189,248,.75)); }
+.help-close{ position:sticky; top:0; float:right; background:#111827; color:#fff; border:none; padding:.35rem .55rem; border-radius:8px; cursor:pointer; }
+.help-tabs{ display:flex; gap:.5rem; margin:.25rem 0 .75rem; }
+  .help-tabs .tab{
+  all:unset; cursor:pointer; padding:.48rem .8rem; border-radius:10px; font-weight:700;
+  color:#e5e7eb; border:1px solid rgba(99,102,241,.45); background: rgba(99,102,241,.12);
+}
+  .help-tabs .tab.active{ background: rgba(99,102,241,.24); border-color: rgba(99,102,241,.65); }
+.help-panels .panel{ display:none; }
+.help-panels .panel.active{ display:block; }
+.flow-steps{ padding-left:1.2rem; line-height:1.8; }
+.list{ padding-left:1.2rem; line-height:1.8; }
+.muted{ opacity:.8; }
+.visually-hidden{ position:absolute; width:1px; height:1px; margin:-1px; border:0; padding:0; clip:rect(0 0 0 0); overflow:hidden; }
+/* mobile: bottom sheet style */
+@media (max-width: 520px){
+  .help-card{ width:100%; max-width:100%; border-bottom-left-radius:0; border-bottom-right-radius:0; align-self:flex-end; }
+}
+/* 打开弹窗时禁止滚动 */
+.modal-open{ overflow:hidden; }
+
+.cost-notice{ display:none !important; }
+
+/* 统一“价格·涨价说明”弹窗：隐藏旧入口（全部并入统一弹窗） */
+#openPriceModal, #openFlowModal, #openSupportModal, #openPolicy, #openWhy, #openFlow { display:none !important; }
+/* 弹窗打开时，底部公告条降噪并禁点（小屏避免误触） */
+body.modal-open .sticky-note{ opacity:.6; pointer-events:none; }
+/* 打开弹窗时禁止页面滚动 */
+body.modal-open{ overflow:hidden; }
+
+/* 底部公告条（全宽居中） */
+.sticky-note{
+  position:fixed; left:0; right:0; bottom:0; z-index:30;
+  display:flex; align-items:center; justify-content:center; gap:.8rem; flex-wrap:wrap;
+  padding:.7rem 1rem; background: rgba(11,18,32,.90);
+  border-top:1px solid var(--surface-glass); backdrop-filter:saturate(140%) blur(4px);
+  font-size:14px; color:#fff;
+}
+.sticky-note .cta-mini{
+  all:unset; cursor:pointer; font-weight:700; padding:.42rem .75rem; border-radius:10px;
+  border:1px solid rgba(255,255,255,.65); color:#fff;
+}
+.sticky-note .cta-outline{
+  all:unset; cursor:pointer; font-weight:700; padding:.42rem .75rem; border-radius:10px;
+  border:1px solid rgba(99,102,241,.75); color:#fff;
+}
+
+/* 价格·涨价说明 弹窗 */
+.modal-mask{ position:fixed; inset:0; background:rgba(0,0,0,.5); display:none; align-items:center; justify-content:center; z-index:70; padding:16px; }
+.modal-mask.show{ display:flex; }
+.modal-card{ width:min(720px,96vw); background: var(--overlay); color: var(--text-muted); border-radius:16px; padding:20px 20px 16px;
+  border:1px solid var(--surface-glass); box-shadow:0 20px 60px rgba(0,0,0,.4); outline:0; }
+.modal-close{ position:absolute; transform:translate(670px,-10px); background:#111827; color:#fff; border:none; padding:.35rem .55rem; border-radius:8px; cursor:pointer; }
+.help-tabs{ display:flex; gap:.5rem; margin:.5rem 0 1rem; flex-wrap:wrap; }
+.help-tabs .tab-btn{
+  all:unset; cursor:pointer; padding:.35rem .7rem; border-radius:10px; font-weight:700; color:#cfeff6;
+  border:1px solid rgba(31,182,207,.35); background:rgba(31,182,207,.12);
+}
+.help-tabs .tab-btn.active{ color:#fff; background: rgba(31,182,207,.24); border-color: rgba(31,182,207,.55); }
+.tab-panel[hidden]{ display:none !important; }
+.tab-panel.active{ display:block; }
+.flow-steps{ padding-left:1.2rem; margin:.2rem 0 1rem }
+.hint{ opacity:.8; }
+
+/* 弹窗内按钮容器：增加间距 */
+.modal-footer{
+  display:flex; gap:1rem; align-items:center; flex-wrap:wrap;
+}
+
+/* 弹窗内按钮：统一描边 */
+.modal-footer .cta-mini{
+  all:unset; cursor:pointer; font-weight:700; padding:.42rem .75rem; border-radius:10px;
+  border:1px solid rgba(255,255,255,.65); color:#fff;
+}
+/* 弹窗内购买按钮：与主 CTA 一致 */
+  .modal-footer .cta-outline{
+  all:unset; cursor:pointer; font-weight:700; padding:.42rem .75rem; border-radius:10px;
+    background: linear-gradient(180deg, var(--brand-600) 0%, var(--brand-500) 100%);
+    color:#fff;
+}
+
+@media (max-width:480px){ .modal-close{ transform:translate(300px,-10px);} }
+
+/* 小链接颜色 */
+a#openWhyTop{ color:#aef3ff; text-decoration:underline; }
+a#openWhyTop:hover{ color:#fff; }
+
+/* === Recharge Guide (rg-) minimal styles === */
+.rg-mask{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:999;padding:16px;}
+.rg-mask.show{display:flex;}
+.rg-card{width:min(560px,96vw);background:linear-gradient(180deg, rgba(10,36,48,.92), rgba(9,30,40,.92));color:#e6f7fb;border-radius:16px;padding:20px 20px 16px;border:1px solid rgba(31,182,207,.35);box-shadow:0 20px 60px rgba(0,0,0,.35);outline:0; backdrop-filter: blur(8px) saturate(120%); -webkit-backdrop-filter: blur(8px) saturate(120%); position:relative;}
+.rg-card::after{ content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; padding:1px; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; background: linear-gradient(135deg, rgba(31,182,207,.85), rgba(20,184,166,.75), rgba(56,189,248,.75)); }
+.rg-title{margin:.2rem 0 1rem;font-size:1.1rem;font-weight:800;}
+.rg-close{position:absolute;transform:translate(500px,-10px);background:#111827;color:#fff;border:none;padding:.35rem .55rem;border-radius:8px;cursor:pointer;}
+.rg-body p{margin:.4rem 0;}
+.rg-actions{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin:.9rem 0 .4rem;}
+.rg-btn{all:unset;cursor:pointer;padding:.55rem .9rem;border-radius:10px;font-weight:800;}
+.rg-btn-primary{background:linear-gradient(180deg,var(--brand-600),var(--brand-500));color:#fff;}
+.rg-btn-ghost{border:1px solid rgba(255,255,255,.65);color:#fff;}
+.rg-copyline{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;background:rgba(255,255,255,.06);padding:.5rem .6rem;border-radius:10px;border:1px solid rgba(255,255,255,.08)}
+.rg-url{user-select:all;word-break:break-all}
+.rg-hint{opacity:.8;font-size:.9rem}
+@media (max-width:480px){ .rg-close{ transform:translate(260px,-10px);} }
+
+/* === 充值系统选择弹窗 (rs-) === */
+.rs-mask{position:fixed;inset:0;background:rgba(0,0,0,.5);display:none;align-items:center;justify-content:center;z-index:999;padding:16px;}
+.rs-mask.show{display:flex;}
+.rs-card{width:min(520px,96vw);background:linear-gradient(180deg, rgba(10,36,48,.92), rgba(9,30,40,.92));color:#e6f7fb;border-radius:16px;padding:20px 20px 16px;border:1px solid rgba(31,182,207,.35);box-shadow:0 20px 60px rgba(0,0,0,.35);outline:0; backdrop-filter: blur(8px) saturate(120%); -webkit-backdrop-filter: blur(8px) saturate(120%); position:relative;}
+.rs-card::after{ content:""; position:absolute; inset:0; border-radius:inherit; pointer-events:none; padding:1px; mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0); -webkit-mask-composite: xor; mask-composite: exclude; background: linear-gradient(135deg, rgba(31,182,207,.85), rgba(20,184,166,.75), rgba(56,189,248,.75)); }
+.rs-title{margin:.2rem 0 1rem;font-size:1.1rem;font-weight:800;text-align:center;}
+.rs-close{position:absolute;transform:translate(470px,-10px);background:#111827;color:#fff;border:none;padding:.35rem .55rem;border-radius:8px;cursor:pointer;}
+.rs-body p{margin:.4rem 0;text-align:center;}
+    .rs-options{display:flex;flex-direction:column;gap:16px;margin:20px 0;max-width:400px;margin-left:auto;margin-right:auto;}
+    .rs-option{padding:20px 16px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.2);border-radius:14px;cursor:pointer;transition:all .2s ease;text-align:center;box-shadow:0 4px 12px rgba(0,0,0,.1);}
+.rs-option:hover{background:rgba(255,255,255,.12);border-color:rgba(255,255,255,.25);transform:translateY(-2px);}
+    .rs-option-title{font-weight:800;margin-bottom:8px;color:#fff;font-size:1.05rem;}
+    .rs-option-desc{font-size:.9rem;opacity:.85;margin-bottom:10px;color:#d1f4ff;}
+    .rs-option-url{font-size:.85rem;color:var(--brand-500);word-break:break-all;font-weight:600;}
+.rs-actions{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin:.9rem 0 .4rem;justify-content:center;}
+.rs-btn{all:unset;cursor:pointer;padding:.55rem .9rem;border-radius:10px;font-weight:800;}
+.rs-btn-primary{background:linear-gradient(180deg,var(--brand-600),var(--brand-500));color:#fff;}
+.rs-btn-ghost{border:1px solid rgba(255,255,255,.65);color:#fff;}
+@media (max-width:640px){ 
+  .rs-options{ max-width:100%; gap:12px; }
+  .rs-option{ padding:16px 12px; }
+}
+@media (max-width:480px){ 
+  .rs-close{ transform:translate(260px,-10px);} 
+  .rs-option{ padding:12px 8px; }
+}
+
+/* === 官方通知弹窗（proof-） === */
+.proof-mask{position:fixed;inset:0;background:rgba(0,0,0,.55);display:none;align-items:center;justify-content:center;z-index:120;padding:16px;}
+.proof-mask.show{display:flex;}
+.proof-card{width:min(860px,96vw);max-height:90vh;overflow:auto;background:#0b1220;color:rgba(255,255,255,.88);
+  border-radius:16px;padding:20px 20px 18px;border:1px solid rgba(255,255,255,.08);box-shadow:0 20px 60px rgba(0,0,0,.45);outline:0;}
+.proof-close{position:sticky;top:-8px;float:right;background:#111827;color:#fff;border:none;padding:.38rem .6rem;border-radius:8px;cursor:pointer;}
+.proof-title{margin:.2rem 0 1rem;font-size:1.15rem;font-weight:800;}
+.proof-sec{margin:.75rem 0;}
+.proof-sec h4{margin:.25rem 0 .4rem;font-size:1.02rem;}
+.proof-list{margin:.35rem 0 .2rem;padding-left:1rem;}
+.proof-list li{margin:.3rem 0;}
+.proof-actions{display:flex;gap:.6rem;align-items:center;flex-wrap:wrap;margin:1rem 0 .2rem;}
+.proof-btn{all:unset;cursor:pointer;padding:.55rem .9rem;border-radius:10px;font-weight:800;}
+.proof-btn-ghost{border:1px solid rgba(255,255,255,.65);color:#fff;}
+.proof-btn-primary{background:linear-gradient(180deg,var(--brand-600) 0%,var(--brand-500) 100%);color:#fff;}
+.proof-hint{opacity:.82;}
+.proof-imgwrap{position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);z-index:130;display:none;background:rgba(0,0,0,.9);padding:20px;border-radius:12px;border:1px solid rgba(255,255,255,.2);}
+.proof-imgwrap.show{display:block;}
+.proof-img{max-width:90vw;max-height:80vh;width:auto;height:auto;border-radius:8px;position:relative;}
+.proof-imgwrap .img-close{position:absolute;top:-10px;right:-10px;background:#ff4444;color:#fff;border:none;width:30px;height:30px;border-radius:50%;cursor:pointer;font-size:16px;font-weight:bold;display:none;z-index:131;}
+@media (max-width:640px){
+  .proof-imgwrap{padding:15px;border-radius:8px;}
+  .proof-imgwrap .img-close{display:block;}
+  .proof-img{max-width:95vw;max-height:85vh;}
+}
+.proof-openlink{opacity:.9;text-decoration:underline;cursor:pointer;margin-left:.5rem;}
+/* 价格构成页签内的小链接样式（弱化） */
+#tab-price .open-proof-link{opacity:.85;text-decoration:underline;cursor:pointer;margin-left:.6rem;}
+@media (max-width:480px){ .proof-close{position:static;float:none;margin-left:auto;display:block;margin-bottom:.2rem;} }
+
+/* 统一"为什么不是更便宜"弹窗：隐藏旧入口（全部映射到新弹窗） */
+#openPriceModal, #openFlowModal, #openSupportModal, #openPolicy, #openWhy, #openFlow { display:none !important; }
+
+/* 打开弹窗时：禁滚动 & 底部条降噪禁点（小屏避免误触） */
+body.modal-open { overflow:hidden; }
+body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
 </style>
 </head>
-
 <body>
-  <main class="card">
-    <!-- 顶部 -->
-    <header class="card-header">
-      <h1>GPT Plus 充值服务</h1>
-      <!-- 🔥 价格 + CTA -->
-      <div class="price">
-        <span class="price-val">¥159</span>
-        <span class="price-tag">月付·限时优惠 <span class="icon">🔒</span></span>
-      </div>
-      <div class="price-anchor">
-        对比野卡渠道（≈¥185） → 立省 <span>¥26</span>
-      </div>
-      <div class="price-anchor-sub">
-        折合每天仅 <strong>¥5.3</strong>
-      </div>
-
-      <button class="btn-buy" id="buyBtn" aria-label="立即购买卡密">🛒 立即购买卡密</button>
-      <div class="steps-mini">
-        <span class="step-pill">1 下单卡密</span>
-        <span class="step-pill">2 提交账号</span>
-        <span class="step-pill">3 自动到帐</span>
-        <a class="steps-link" href="#" id="openFlow">查看流程</a>
-      </div>
-      <p class="note-weak">已有卡密？
-        <a class="note-link" href="https://www.ow520.com">点此输入激活码</a>
-      </p>
-
-      <ul class="buy-notes">
-        <li>官方 iOS 通道 · 微信直充 · 5 分钟自动到帐</li>
-        <li>无需提供账号密码，支持新老账号</li>
-        <li>如遇问题，右下角可随时联系人工客服</li>
-      </ul>
-      
-      <div class="badges">
-        <span class="badge">📱 官方 iOS 通道</span>
-        <span class="badge">🔒 不封号</span>
-        <span class="badge">🛡️ 不泄露密码</span>
-        <span class="badge">🎥 视频教程</span>
-      </div>
-
-      <div class="stats">
-        <div class="stat">
-          <div class="stat-value">50,000+</div>
-          <div class="stat-label">满意用户</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value">99.9%</div>
-          <div class="stat-label">成功率</div>
-        </div>
-        <div class="stat">
-          <div class="stat-value">24/7</div>
-          <div class="stat-label">在线客服</div>
-        </div>
-      </div>
-    </header>
-
-    <!-- 表单 -->
-    <section class="form-area">
-      <ol class="steps">
-        <li class="active">1</li>
-        <li>2</li>
-        <li>3</li>
-      </ol>
-
-      <label class="field-label" for="code">激活码</label>
-      <input
-        id="code"
-        name="code"
-        type="text"
-        placeholder="请输入激活码，例如：GPT-DEMO-1234-ABCD"
-        class="input"
-      />
-
-      <p class="hint">激活码由字母、数字和横线组成，不区分大小写</p>
-
-      <button class="btn" onclick="submitCode()">验证激活码</button>
-    </section>
-
-    <footer>
-      本平台仅为国内用户提供代充值通道，采用 iOS 官方渠道，安全无忧<br />
-      GPT Plus 自动化处理，极简 3 步完成充值
-    </footer>
-  </main>
-
-  <!-- 客服浮窗 -->
-  <button class="cs-fab" id="csFab" aria-label="联系客服">💬</button>
-  <div class="cs-drawer" id="csDrawer" aria-hidden="true">
-    <div class="cs-head">
-      <strong>联系客服</strong>
-      <button id="csClose" aria-label="关闭">✕</button>
-    </div>
-    <div class="cs-body">
-      <p>微信：<b id="wx">mmzi0723</b>
-        <button class="copy" onclick="copyText('wx')">复制</button></p>
-      <p>QQ：<b id="qq">122026860</b>
-        <button class="copy" onclick="copyText('qq')">复制</button></p>
-      <!-- 如有二维码可自行替换图片路径 -->
-      <!-- <img src="/assets/wechat-qr.jpg" alt="微信二维码" class="qr"> -->
-    </div>
+<main class="card">
+<!-- 顶部 -->
+<header class="card-header">
+<div class="hero">
+<div class="brand-badge" aria-label="光年升级计划 官方充值平台">
+  <svg class="brand-icon" viewBox="0 0 48 48" xmlns="http://www.w3.org/2000/svg" role="img" aria-hidden="true">
+    <defs>
+      <linearGradient id="lg" x1="0" y1="1" x2="1" y2="0">
+        <stop offset="0" stop-color="#22D3EE"/>
+        <stop offset="1" stop-color="#14B8A6"/>
+      </linearGradient>
+    </defs>
+    <!-- 上升箭头（升级感） -->
+    <path d="M30 8 L40 8 L40 18" fill="none" stroke="url(#lg)" stroke-width="4" stroke-linecap="round"/>
+    <path d="M40 8 L25 23" fill="none" stroke="url(#lg)" stroke-width="4" stroke-linecap="round"/>
+    <!-- "光"字抽象：竖 + 横 + 撇 -->
+    <path d="M14 10 L14 36" stroke="#aef3ff" stroke-width="4" stroke-linecap="round"/>
+    <path d="M8 22 L26 22" stroke="#aef3ff" stroke-width="4" stroke-linecap="round"/>
+    <path d="M10 36 C16 30, 22 28, 28 28" stroke="#aef3ff" stroke-width="4" stroke-linecap="round" fill="none"/>
+  </svg>
+  <div>
+    <span class="brand-name">光年升级计划</span>
+    <span class="brand-sub">· 官方充值平台</span>
   </div>
+</div>
+<h1>GPT Plus 安全充值❗</h1>
+<div class="notice-bar-top">📢 当前价 ¥188 ｜ 官方通道更稳</div>
+<div class="hero-divider"></div>
+</div>
+<!-- 成本暴涨通知 -->
+<div class="cost-notice">
+<div class="cost-notice-icon">📢</div>
+<div class="cost-notice-content">
+<div class="cost-notice-title">重要价格调整通知</div>
+<div class="cost-notice-main">
+<div class="cost-notice-item">
+<span class="cost-notice-label">💰 成本变化：</span>
+              全球成本上涨，价格调整至 <strong>¥188</strong>
+</div>
+<div class="cost-notice-item">
+<span class="cost-notice-label">⚠️ 风险提醒：</span>
+              低价警惕黑卡，避免封号
+            </div>
+<div class="cost-notice-item">
+<span class="cost-notice-label">📈 后续趋势：</span>
+              价格可能继续上涨，详情咨询微信
+            </div>
+<div class="cost-notice-item">
+<span class="cost-notice-label">💬 人工微信：</span>
+<strong id="wechatId">Jiage01888</strong>
+<button class="copy-inline" onclick="copyText('wechatId')">复制</button>
+</div>
+</div>
+</div>
+</div>
+<!-- 🔥 价格 + CTA -->
+<div class="price">
+<span class="price-val">¥188</span>
+<span class="price-tag">月付·标准版</span>
+</div>
+<!-- 购买和充值按钮组 -->
+<div class="button-group">
+  <button aria-label="立即购买卡密" class="btn-buy" id="buyBtn">🛒 立即购买 (¥188)</button>
+  <button class="btn-recharge" id="rechargeBtn">💳 进入自动充值系统</button>
+</div>
+<a href="#" id="openWhyTop">为什么不是更便宜</a>
+<p class="small-risk">⚠ 警惕低价黑卡，避免封号风险</p>
+<div class="steps-mini">
+<span class="step-pill">1 下单卡密</span>
+<span class="step-pill">2 进入网站充值</span>
+<span class="step-pill">3 自动到帐</span>
+<a class="steps-link" href="#" id="openFlow">查看流程</a>
+</div>
+<ul class="buy-notes">
+<li>官方 iOS 通道·微信直充·5分钟自动到帐</li>
+<li>无需提供账号密码，支持新老账号</li>
+<li>可开票，需要开票请先联系人工，勿直接购买</li>
+</ul>
+<div class="badges">
+<span class="badge">📱 官方 iOS 通道</span>
+<span class="badge">🛡️ 无需提供密码</span>
+<span class="badge">🔒 降低封号风险</span>
+</div>
+<div class="stats">
+<div class="stat">
+<div class="stat-value">50,000+</div>
+<div class="stat-label">服务用户</div>
+</div>
+<div class="stat">
+<div class="stat-value">99.9%</div>
+<div class="stat-label">充值成功（近30天）</div>
+</div>
+<div class="stat">
+<div class="stat-value">9:00–24:00</div>
+<div class="stat-label">人工在线</div>
+</div>
+</div>
+</header>
+<!-- 表单 -->
+<section class="form-area">
+<ol class="steps">
+<li class="active">1</li>
+<li>2</li>
+<li>3</li>
+</ol>
+<label class="field-label" for="code">激活码</label>
+<input class="input" id="code" name="code" placeholder="请输入激活码，例如：GPT-DEMO-1234-ABCD" type="text"/>
+<p class="hint">激活码由字母、数字和横线组成，不区分大小写</p>
+<button class="btn" onclick="submitCode()">验证激活码</button>
+</section>
+<footer>
+      面向国内用户的代充值通道，采用 iOS 官方渠道；自动化处理，三步完成。
+    </footer>
+</main>
+<!-- 客服浮窗 -->
 
-  <script>
+<div aria-hidden="true" class="cs-drawer" id="csDrawer">
+<div class="cs-head">
+<strong>联系人工</strong>
+<button aria-label="关闭" id="csClose">✕</button>
+</div>
+<div class="cs-body">
+<p>微信：<b id="wx">Jiage01888</b>
+<button class="copy" onclick="copyText('wx')">复制</button></p>
+<div class="qq-toggle">
+<button class="qq-toggle-btn" id="qqToggle">微信联系不上时，请联系QQ</button>
+<div class="qq-content" id="qqContent" style="display: none;">
+<p>QQ：<b id="qq">1852634132</b>
+<button class="copy" onclick="copyText('qq')">复制</button></p>
+</div>
+</div>
+<!-- 如有二维码可自行替换图片路径 -->
+<!-- <img src="/assets/wechat-qr.jpg" alt="微信二维码" class="qr"> -->
+</div>
+</div>
+<script>
     function submitCode() {
       const code = document.getElementById("code").value.trim();
       if (!code) {
@@ -503,23 +1147,33 @@
         return;
       }
       // 跳转到激活码验证页面
-      window.location.href = `https://www.ow520.com/?code=${code}`;
+      window.location.href = `chongzhi.pro`;
     }
 
     document.getElementById('buyBtn')?.addEventListener('click', function () {
-      window.location.href = 'https://sc.i6ls.com//details/CF5AAE95';
+      // 改为新窗口打开购买链接
+      window.open('https://fe.dtyuedan.cn/shop/jiage', '_blank', 'noopener');
     });
 
-    const fab = document.getElementById('csFab');
     const drawer = document.getElementById('csDrawer');
     const closeBtn = document.getElementById('csClose');
+    const qqToggle = document.getElementById('qqToggle');
+    const qqContent = document.getElementById('qqContent');
 
     function toggleDrawer(show){
       if(show){ drawer.classList.add('open'); drawer.setAttribute('aria-hidden','false'); }
       else    { drawer.classList.remove('open'); drawer.setAttribute('aria-hidden','true'); }
     }
-    fab?.addEventListener('click', ()=> toggleDrawer(true));
     closeBtn?.addEventListener('click', ()=> toggleDrawer(false));
+    
+    // QQ折叠展开功能
+    qqToggle?.addEventListener('click', ()=> {
+      const isHidden = qqContent.style.display === 'none';
+      qqContent.style.display = isHidden ? 'block' : 'none';
+      qqToggle.textContent = isHidden ? '收起QQ联系方式' : '微信联系不上时，请联系QQ';
+    });
+    
+    
 
     function copyText(id){
       const text = document.getElementById(id)?.textContent || '';
@@ -530,41 +1184,720 @@
     }
     window.copyText = copyText;
   </script>
-  <!-- 移动端底部浮窗 CTA -->
-  <a href="https://sc.i6ls.com//details/CF5AAE95" class="cta-sticky" role="button" aria-label="¥159 立即购买">¥159 立即购买</a>
-  <div class="flow-mask" id="flowMask" aria-hidden="true">
-    <div class="flow-modal">
-      <div class="flow-head">
-        <strong>充值流程</strong>
-        <button id="closeFlow" aria-label="关闭">✕</button>
-      </div>
-      <div class="flow-body">
-        <ol>
-          <li><b>下单卡密：</b>点击"立即购买卡密"，完成微信支付。</li>
-          <li><b>提交账号：</b>按提示填写/确认你的 GPT 账号（无需提供密码）。</li>
-          <li><b>自动到帐：</b>系统走 iOS 官方通道，约 5 分钟完成开通。</li>
-        </ol>
-        <p class="tips">充值过程中遇到问题，请联系人工协助。</p>
-  <div class="flow-support">
-    <p class="support-title">客服入口：</p>
-    <p>微信：<b id="flow-wx">mmzi0723</b>
-       <button class="copy-btn" onclick="copyText('flow-wx')">复制</button>
-    </p>
-    <p>QQ：<b id="flow-qq">122026860</b>
-       <button class="copy-btn" onclick="copyText('flow-qq')">复制</button>
-    </p>
-  </div>
-      </div>
-    </div>
-  </div>
-
-  <script>
+<!-- 移动端底部浮窗 CTA -->
+<a aria-label="¥188 立即购买" class="cta-sticky" href="#" role="button" id="mobileBuyBtn">¥188 立即购买</a>
+<script>
     const openFlow = document.getElementById('openFlow');
     const flowMask = document.getElementById('flowMask');
     const closeFlow = document.getElementById('closeFlow');
     openFlow?.addEventListener('click', (e)=>{ e.preventDefault(); flowMask?.classList.add('show'); flowMask?.setAttribute('aria-hidden','false'); });
     closeFlow?.addEventListener('click', ()=>{ flowMask?.classList.remove('show'); flowMask?.setAttribute('aria-hidden','true'); });
     flowMask?.addEventListener('click', (e)=>{ if(e.target===flowMask){ flowMask.classList.remove('show'); flowMask.setAttribute('aria-hidden','true'); }});
+    
+    
+    
+    // 充值流程弹窗中的QQ折叠展开功能
+    const flowQqToggle = document.getElementById('flowQqToggle');
+    const flowQqContent = document.getElementById('flowQqContent');
+    flowQqToggle?.addEventListener('click', ()=> {
+      const isHidden = flowQqContent.style.display === 'none';
+      flowQqContent.style.display = isHidden ? 'block' : 'none';
+      flowQqToggle.textContent = isHidden ? '收起QQ联系方式' : '微信联系不上时，请联系QQ';
+    });
   </script>
-</body>
+<div class="sticky-note" id="bottomNote">
+  <span class="note-text">📌 当前价 <strong>¥188</strong> ｜ 客服微信：<strong id="wxid">Jiage01888</strong></span>
+  <button class="cta-mini" id="copyWeChat">复制微信</button>
+  <button class="cta-outline" id="openWhyFooter">为什么不是更便宜</button>
+  <a data-open="rechargeGuide" style="opacity:.75;text-decoration:underline;margin-left:.5rem;display:none;">
+    已购买·去激活
+  </a>
+</div>
+<script>
+// 复制微信 + 弹窗逻辑
+(function(){
+  function copy(text){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      return navigator.clipboard.writeText(text);
+    } else {
+      alert('微信号：'+text+'\n请长按复制');
+      return Promise.resolve();
+    }
+  }
+  var wx = (document.getElementById('wxid') && document.getElementById('wxid').textContent) || 'Jiage01888';
+  var b1 = document.getElementById('copyWeChat');
+  var b2 = document.getElementById('modalCopyWeChat');
+  if(b1){ b1.addEventListener('click', function(){ copy(wx).then(function(){ b1.textContent='已复制'; setTimeout(function(){ b1.textContent='复制微信'; },1600) }) }); }
+  if(b2){ b2.addEventListener('click', function(){ copy(wx).then(function(){ b2.textContent='已复制'; setTimeout(function(){ b2.textContent='复制微信：'+wx; },1600) }) }); }
+  var openBtn = document.getElementById('openPriceModal');
+  var modal = document.getElementById('priceModal');
+  var closeBtn = document.getElementById('closePriceModal');
+  if(openBtn && modal){
+    openBtn.addEventListener('click', function(){ modal.classList.add('show'); modal.setAttribute('aria-hidden','false'); });
+  }
+  if(closeBtn && modal){
+    closeBtn.addEventListener('click', function(){ modal.classList.remove('show'); modal.setAttribute('aria-hidden','true'); });
+    modal.addEventListener('click', function(e){ if(e.target===modal){ modal.classList.remove('show'); modal.setAttribute('aria-hidden','true'); } });
+  }
+})();</script>
+
+<script>
+(function(){
+  function $(s){ return document.querySelector(s); }
+  function $all(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); }
+  var body = document.body;
+  var helpMask = $('#helpModal');
+  var helpCard = helpMask ? helpMask.querySelector('.help-card') : null;
+  var helpClose = $('#helpClose');
+  var tabs = $all('.help-tabs .tab');
+  var panels = $all('.help-panels .panel');
+  var lastFocus = null;
+
+  function setTab(name){
+    tabs.forEach(function(t){
+      var active = t.getAttribute('data-tab') === name;
+      t.classList.toggle('active', active);
+      t.setAttribute('aria-selected', active ? 'true' : 'false');
+    });
+    panels.forEach(function(p){
+      var show = p.getAttribute('data-panel') === name;
+      p.classList.toggle('active', show);
+      p.setAttribute('aria-hidden', show ? 'false' : 'true');
+    });
+    try { localStorage.setItem('help_tab', name); } catch(e){}
+  }
+
+  function openHelp(defaultTab){
+    lastFocus = document.activeElement;
+    var saved = null; try { saved = localStorage.getItem('help_tab'); } catch(e){}
+    var tab = defaultTab || saved || 'flow';
+    setTab(tab);
+    helpMask.classList.add('show');
+    helpMask.setAttribute('aria-hidden','false');
+    body.classList.add('modal-open');
+    (helpCard || helpMask).focus({preventScroll:true});
+  }
+
+  function closeHelp(){
+    helpMask.classList.remove('show');
+    helpMask.setAttribute('aria-hidden','true');
+    body.classList.remove('modal-open');
+    if(lastFocus && typeof lastFocus.focus === 'function'){ lastFocus.focus(); }
+  }
+
+  // Tab click
+  tabs.forEach(function(t){ t.addEventListener('click', function(){ setTab(t.getAttribute('data-tab')); }); });
+
+  // Triggers
+  var openTop = $('#openHelpModal');
+  var openBottom = $('#openHelpModalBottom');
+  if(openTop){ openTop.addEventListener('click', function(e){ e.preventDefault(); openHelp('flow'); }); }
+  if(openBottom){ openBottom.addEventListener('click', function(){ openHelp('flow'); }); }
+
+
+  // Close mechanics
+  if(helpClose) helpClose.addEventListener('click', closeHelp);
+  if(helpMask) helpMask.addEventListener('click', function(e){ if(e.target===helpMask) closeHelp(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && helpMask.classList.contains('show')) closeHelp(); });
+
+  // Copy WeChat buttons (bottom bar + help panel)
+  function isMobile(){ return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent); }
+  function copy(text){
+    if(navigator.clipboard && navigator.clipboard.writeText){
+      return navigator.clipboard.writeText(text);
+    } else { alert('微信号：'+text+'\\n请手动复制'); return Promise.resolve(); }
+  }
+  var wechat = (document.getElementById('wxid') && document.getElementById('wxid').textContent) || (document.getElementById('helpWx') && document.getElementById('helpWx').textContent) || 'Jiage01888';
+  var copyBtns = [ document.getElementById('copyWeChat'), document.getElementById('copyWeChatHelp') ].filter(Boolean);
+  copyBtns.forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var text = btn.textContent;
+      copy(wechat).then(function(){
+        btn.textContent = '已复制';
+        setTimeout(function(){ btn.textContent = text; }, 1600);
+        if(isMobile()){ setTimeout(function(){ try{ window.location.href='weixin://'; }catch(e){} }, 300); }
+      });
+    });
+  });
+
+  // Expose for debug
+  window.helpCenter = { open: openHelp, close: closeHelp, setTab: setTab };
+})();
+</script>
+<!-- 统一弹窗：为什么不是更便宜 -->
+<div class="modal-mask" id="whyModal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-labelledby="whyTitle" tabindex="-1">
+    <button class="modal-close" id="whyClose" aria-label="关闭">×</button>
+    <h3 id="whyTitle" style="margin:.2rem 0 1rem">为什么不是更便宜</h3>
+
+    <nav class="help-tabs" role="tablist" aria-label="为什么不是更便宜">
+      <button role="tab" id="tabbtn-price" class="tab-btn active" data-tab="price" aria-selected="true" aria-controls="tab-price">价格构成</button>
+      <button role="tab" id="tabbtn-flow" class="tab-btn" data-tab="flow" aria-selected="false" aria-controls="tab-flow">充值流程</button>
+      <button role="tab" id="tabbtn-support" class="tab-btn" data-tab="support" aria-selected="false" aria-controls="tab-support">客服微信</button>
+    </nav>
+
+    <section id="tab-price" class="tab-panel active" role="tabpanel" aria-labelledby="tabbtn-price">
+      <p>官方订阅价 <strong>19.99 美元</strong>（或等值货币）。</p>
+      <ul>
+        <li>🍎 苹果通道与支付手续费</li>
+        <li>🔒 账号维护与风控成本（避免黑卡、降低封号风险）</li>
+        <li>👩‍💻 人工客服与售后保障</li>
+      </ul>
+      <p>综合以上成本，本站价格为 <strong>¥188</strong>。若整体成本上涨，价格可能相应调整。</p>
+      <a class="open-proof-link" id="openOfficialProof">查看官方通知 / 展开说明</a>
+      <div class="modal-footer">
+        <a href="#" class="cta-outline" id="modalBuyP">去购买</a>
+        <button class="cta-mini" id="modalCopyWxP">复制微信：<span class="wx">Jiage01888</span></button>
+      </div>
+    </section>
+
+    <section id="tab-flow" class="tab-panel" role="tabpanel" aria-labelledby="tabbtn-flow" hidden>
+      <ul class="flow-steps">
+        <li>① 下单获取卡密</li>
+        <li>② 获取账号充值信息（无需提供账号密码）</li>
+        <li>③ 约 5 分钟到账</li>
+      </ul>
+      <p class="hint">提示：若遇到账延迟，请先勿重复下单，联系人工处理。</p>
+      <div class="modal-footer">
+        <a href="#" class="cta-outline" id="modalBuyF">去购买</a>
+        <button class="cta-mini" id="modalCopyWxF">复制微信：<span class="wx">Jiage01888</span></button>
+      </div>
+    </section>
+
+    <section id="tab-support" class="tab-panel" role="tabpanel" aria-labelledby="tabbtn-support" hidden>
+      <p>微信：<strong class="wx">Jiage01888</strong></p>
+      <p class="hint">人工在线：9:00–24:00（其他时段尽量回复）</p>
+      <div class="modal-footer">
+        <a href="#" class="cta-outline" id="modalBuyS">去购买</a>
+        <button class="cta-mini" id="modalCopyWxS">复制微信：<span class="wx">Jiage01888</span></button>
+      </div>
+    </section>
+  </div>
+</div>
+
+<!-- 充值网站指引（不依赖外部接口） -->
+<div class="rg-mask" id="rechargeGuide" aria-hidden="true">
+  <div class="rg-card" role="dialog" aria-labelledby="rgTitle" tabindex="-1">
+    <button class="rg-close" id="rgClose" aria-label="关闭">×</button>
+    <h3 class="rg-title" id="rgTitle">充值网站指引</h3>
+
+    <div class="rg-body">
+      <p>已在发卡网完成购买并获得卡密后，请前往充值网站填写卡密，完成激活。</p>
+      <p class="rg-hint">通常约 <strong>5 分钟</strong>到账；如遇延迟，请先勿重复下单，加微信处理。</p>
+
+      <div class="rg-actions">
+        <button class="rg-btn rg-btn-primary" id="rgOpen">打开充值网站</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 充值系统选择弹窗 -->
+<div class="rs-mask" id="rechargeSystemModal" aria-hidden="true">
+  <div class="rs-card" role="dialog" aria-labelledby="rsTitle" tabindex="-1">
+    <button class="rs-close" id="rsClose" aria-label="关闭">×</button>
+    <h3 class="rs-title" id="rsTitle">选择充值网站激活</h3>
+
+    <div class="rs-body">
+      <p>说明：</p>
+      <ul style="margin: 8px 0; padding-left: 20px; line-height: 1.6;">
+        <li>购买了自动充值1卡密 → 进入网站1激活</li>
+        <li>购买了自动充值2卡密 → 进入网站2激活</li>
+      </ul>
+      
+      <div class="rs-options">
+        <div class="rs-option" data-url="https://www.ow521.com">
+          <div class="rs-option-title">自动充值1</div>
+          <div class="rs-option-desc">点击进入激活网站</div>
+          <div class="rs-option-url">www.ow521.com</div>
+        </div>
+        <div class="rs-option" data-url="https://www.987ai.vip">
+          <div class="rs-option-title">自动充值2</div>
+          <div class="rs-option-desc">点击进入激活网站</div>
+          <div class="rs-option-url">www.987ai.vip</div>
+        </div>
+      </div>
+      
+      <div class="rs-actions">
+        <button class="rs-btn rs-btn-ghost" id="rsCancel">取消</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- 缺货公告弹窗 -->
+<div class="modal-mask" id="outOfStockModal" aria-hidden="true">
+  <div class="modal-card" role="dialog" aria-labelledby="outOfStockTitle" tabindex="-1">
+    <button class="modal-close" id="outOfStockClose" aria-label="关闭">×</button>
+    <h3 id="outOfStockTitle" style="margin:.2rem 0 1rem">⚠️ 系统缺货通知</h3>
+    
+    <div style="text-align: center; margin: 20px 0;">
+      <div style="font-size: 3rem; margin-bottom: 16px;">📦</div>
+      <p style="font-size: 1.1rem; line-height: 1.6; margin-bottom: 20px;">
+        很抱歉，目前全网充值系统缺货，无法自动充值。
+      </p>
+      <p style="font-size: 1rem; line-height: 1.6; margin-bottom: 24px; color: #e5e7eb;">
+        为了不影响您的使用，我们提供<strong style="color: #f97316;">人工手动代充</strong>服务。
+      </p>
+    </div>
+    
+    <div style="background: var(--brand-glass); border: 1px solid var(--surface-glass); border-radius: 12px; padding: 16px; margin: 20px 0;">
+      <p style="margin: 0; font-weight: 600; text-align: center;">
+        💬 请添加微信：<strong style="color: #f97316;">Jiage01888</strong>
+      </p>
+      <p style="margin: 8px 0 0; font-size: 0.9rem; text-align: center; opacity: 0.8;">
+        人工在线：9:00–24:00
+      </p>
+    </div>
+    
+    <div class="modal-footer">
+      <button class="cta-mini" id="copyWeChatOutOfStock">复制微信</button>
+      <button class="cta-outline" id="closeOutOfStockModal">我知道了</button>
+    </div>
+  </div>
+</div>
+
+<!-- 官方价格通知 & 合规说明（完整版） -->
+<div class="proof-mask" id="officialProof" aria-hidden="true">
+  <div class="proof-card" role="dialog" aria-labelledby="proofTitle" tabindex="-1">
+    <button class="proof-close" id="proofClose" aria-label="关闭">×</button>
+    <h3 class="proof-title" id="proofTitle">官方价格通知 & 合规说明</h3>
+
+    <!-- 官方价格通知（摘要） -->
+    <section class="proof-sec" id="proof-official">
+      <h4>官方价格通知（摘要）</h4>
+      <ul class="proof-list">
+        <li>官方订阅价 <strong>19.99 美元/月</strong>（自 <strong>2025-09-16</strong> 起分批执行）。</li>
+        <li>本站走 <strong>苹果官方通道</strong>，价格含 <strong>通道费 / 风控 / 售后</strong>。</li>
+      </ul>
+      <p>→ <strong>定价 ¥188</strong>（如整体成本上调，将同步调整）。</p>
+
+      <div class="proof-actions">
+        <button class="proof-btn proof-btn-ghost" id="toggleProofImg">查看官方通知截图</button>
+      </div>
+
+      <!-- 截图悬浮窗 -->
+      <div class="proof-imgwrap" id="proofImgWrap">
+        <button class="img-close" id="imgClose" aria-label="关闭图片">×</button>
+        <img class="proof-img" id="proofImg" src="gpt 图片.png" alt="官方价格通知截图">
+      </div>
+    </section>
+
+    <!-- 关于"低汇率国家"的说明 -->
+    <section class="proof-sec" id="proof-forex">
+      <h4>关于"低汇率国家"的说明</h4>
+      <ul class="proof-list">
+        <li>低价多为 <strong>跨区礼品卡/黑卡</strong>，<strong>不稳定、风险高</strong>。</li>
+        <li>易回滚/拒付，易触发风控，售后不可控。</li>
+      </ul>
+      <p class="proof-hint">目前没有 <strong>长期可复用</strong> 的低汇率方案；我们仅提供 <strong>官方通道</strong>，含 <strong>售后与风险处置</strong>。</p>
+    </section>
+
+    <!-- 结尾 CTA -->
+    <section class="proof-sec">
+      <div class="proof-actions">
+        <button class="proof-btn proof-btn-ghost" id="proofCopyWx">复制微信：<span class="wx">Jiage01888</span></button>
+        <a class="proof-btn proof-btn-primary" id="proofGoBuy" href="#" rel="noopener">去购买</a>
+      </div>
+    </section>
+  </div>
+</div>
+
+<script>
+(function(){
+  function $(s){ return document.querySelector(s); }
+  function $all(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); }
+  function lockScroll(on){ document.body.classList[on?'add':'remove']('modal-open'); }
+  function isMobile(){ return /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent); }
+  function copyText(t){
+    if(navigator.clipboard && navigator.clipboard.writeText){ return navigator.clipboard.writeText(t); }
+    alert('微信号：'+t+'\\n请手动复制'); return Promise.resolve();
+  }
+
+  var modal = $('#whyModal');
+  var card  = modal ? modal.querySelector('.modal-card') : null;
+  var closeBtn = $('#whyClose');
+  var tabBtns = $all('.help-tabs .tab-btn');
+  var panels = { price: $('#tab-price'), flow: $('#tab-flow'), support: $('#tab-support') };
+  var wxEl = $('#wxid'); var wx = wxEl ? (wxEl.textContent || 'Jiage01888') : 'Jiage01888';
+  var lastFocus = null;
+  var FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
+
+  function setTab(tab){
+    if(!panels[tab]) tab = 'price';
+    tabBtns.forEach(function(b){ var on=b.dataset.tab===tab; b.classList.toggle('active', on); b.setAttribute('aria-selected', on?'true':'false'); });
+    Object.keys(panels).forEach(function(k){
+      if(k===tab){ panels[k].classList.add('active'); panels[k].removeAttribute('hidden'); }
+      else{ panels[k].classList.remove('active'); panels[k].setAttribute('hidden',''); }
+    });
+    localStorage.setItem('why_tab', tab);
+  }
+  function openWhy(defaultTab){
+    var tab = defaultTab || localStorage.getItem('why_tab') || 'price';
+    setTab(tab);
+    lastFocus = document.activeElement;
+    modal.classList.add('show'); modal.setAttribute('aria-hidden','false');
+    lockScroll(true);
+    (card||modal).focus({preventScroll:true});
+  }
+  function closeWhy(){
+    modal.classList.remove('show'); modal.setAttribute('aria-hidden','true');
+    lockScroll(false);
+    if(lastFocus && typeof lastFocus.focus==='function'){ lastFocus.focus(); }
+  }
+  function trapFocus(e){
+    if(!modal.classList.contains('show') || e.key!=='Tab') return;
+    var f = modal.querySelectorAll(FOCUSABLE); if(!f.length) return;
+    var first=f[0], last=f[f.length-1];
+    if(e.shiftKey){ if(document.activeElement===first){ last.focus(); e.preventDefault(); } }
+    else{ if(document.activeElement===last){ first.focus(); e.preventDefault(); } }
+  }
+
+  // 页签点击 & 左右方向键切换
+  tabBtns.forEach(function(btn, idx){
+    btn.addEventListener('click', function(){ setTab(btn.dataset.tab); });
+    btn.addEventListener('keydown', function(e){
+      if(e.key==='ArrowRight' || e.key==='ArrowLeft'){
+        var i = idx + (e.key==='ArrowRight'?1:-1);
+        if(i<0) i=tabBtns.length-1; if(i>=tabBtns.length) i=0;
+        var next=tabBtns[i]; next.focus(); setTab(next.dataset.tab); e.preventDefault();
+      }
+    });
+  });
+
+  // 入口：顶部小链接 → 默认"流程"；底部按钮 → 默认"价格"
+  var openTop = $('#openWhyTop');
+  var openBottom = $('#openWhyFooter');
+  if(openTop)    openTop.addEventListener('click', function(e){ e.preventDefault(); openWhy('price'); });
+  if(openBottom) openBottom.addEventListener('click', function(e){ e.preventDefault(); openWhy('price'); });
+
+  // 将旧入口映射到新弹窗（兜底）
+  var map = { openPriceModal:'price', openFlowModal:'flow', openSupportModal:'support', openPolicy:'price', openWhy:'price', openFlow:'flow' };
+  Object.keys(map).forEach(function(id){ var el=document.getElementById(id); if(el){ el.addEventListener('click', function(e){ e.preventDefault(); openWhy(map[id]); }); } });
+
+  // 关闭 & 可访问性
+  if(closeBtn) closeBtn.addEventListener('click', closeWhy);
+  if(modal) modal.addEventListener('click', function(e){ if(e.target===modal) closeWhy(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && modal.classList.contains('show')) closeWhy(); trapFocus(e); });
+
+  // 复制微信（底部 + 弹窗）
+  function bindCopy(id){
+    var btn=document.getElementById(id); if(!btn) return;
+    btn.addEventListener('click', function(){
+      copyText(wx).then(function(){
+        var old=btn.textContent; btn.textContent='已复制，去微信添加';
+        setTimeout(function(){ btn.textContent=old; },1600);
+        if(isMobile()){ setTimeout(function(){ try{ location.href='weixin://'; }catch(e){} }, 300); }
+      });
+    });
+  }
+  bindCopy('copyWeChat'); bindCopy('modalCopyWxP'); bindCopy('modalCopyWxF'); bindCopy('modalCopyWxS');
+
+  // 为三个页签的"去购买卡密"按钮添加跳转逻辑
+  var modalBuyP = document.getElementById('modalBuyP'); // 价格构成页签
+  var modalBuyF = document.getElementById('modalBuyF'); // 充值流程页签
+  var modalBuyS = document.getElementById('modalBuyS'); // 客服微信页签
+  
+  var buyUrl = 'https://yk.dtyuedan.cn//details/9AC78762'; // 与立即购买按钮相同的链接（保留作备用）
+  
+  if(modalBuyP){
+    modalBuyP.addEventListener('click', function(e){
+      e.preventDefault();
+      window.open('https://fe.dtyuedan.cn/shop/jiage', '_blank', 'noopener');
+    });
+  }
+  
+  if(modalBuyF){
+    modalBuyF.addEventListener('click', function(e){
+      e.preventDefault();
+      window.open('https://fe.dtyuedan.cn/shop/jiage', '_blank', 'noopener');
+    });
+  }
+  
+  if(modalBuyS){
+    modalBuyS.addEventListener('click', function(e){
+      e.preventDefault();
+      window.open('https://fe.dtyuedan.cn/shop/jiage', '_blank', 'noopener');
+    });
+  }
+
+
+  // 导出以便调试
+  window.openWhy = openWhy;
+})();
+</script>
+
+<script>
+(function(){
+  // 常量：充值网址（可按需改）
+  var RG_URL = (["https://","chongzhi",".","pro"].join(""));
+
+  // 工具
+  function $(s){ return document.querySelector(s); }
+  function copyText(t){
+    if(navigator.clipboard && navigator.clipboard.writeText){ return navigator.clipboard.writeText(t); }
+    var ta = document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(ta); return Promise.resolve();
+  }
+  function lockScroll(on){ document.body.classList[on?'add':'remove']('modal-open'); } // 不改变你站点样式，仅控制滚动
+
+  // 元素
+  var modal = $('#rechargeGuide');
+  var card  = modal ? modal.querySelector('.rg-card') : null;
+  var closeBtn = $('#rgClose');
+  var btnOpen  = $('#rgOpen');
+  var lastFocus = null;
+
+  // 打开/关闭
+  function openRechargeGuide(){
+    lastFocus = document.activeElement;
+    modal.classList.add('show'); modal.setAttribute('aria-hidden','false');
+    lockScroll(true);
+    (card||modal).focus({preventScroll:true});
+  }
+  function closeRechargeGuide(){
+    modal.classList.remove('show'); modal.setAttribute('aria-hidden','true');
+    lockScroll(false);
+    if(lastFocus && typeof lastFocus.focus==='function'){ try{ lastFocus.focus(); }catch(e){} }
+  }
+
+  // 事件
+  if(closeBtn) closeBtn.addEventListener('click', closeRechargeGuide);
+  if(modal) modal.addEventListener('click', function(e){ if(e.target===modal) closeRechargeGuide(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && modal.classList.contains('show')) closeRechargeGuide(); });
+
+  if(btnOpen){
+    btnOpen.addEventListener('click', function(){
+      window.open(RG_URL, '_blank', 'noopener');
+    });
+  }
+
+  // 暴露全局函数，供你在现有按钮/链接上直接调用
+  window.openRechargeGuide = openRechargeGuide;
+
+  // （可选兜底）如果页面上本来就有某个元素想触发，可给它加 data-open="rechargeGuide"
+  var autoTriggers = document.querySelectorAll('[data-open="rechargeGuide"]');
+  autoTriggers.forEach(function(el){ el.addEventListener('click', function(e){ e.preventDefault(); openRechargeGuide(); }); });
+})();
+</script>
+
+<script>
+(function(){
+  function $(s){ return document.querySelector(s); }
+  function copyText(t){
+    if(navigator.clipboard && navigator.clipboard.writeText){ return navigator.clipboard.writeText(t); }
+    var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); }catch(e){} document.body.removeChild(ta); return Promise.resolve();
+  }
+  function lockScroll(on){ document.body.classList[on?'add':'remove']('modal-open'); }
+
+  // 入口：价格构成页签里的 "查看官方通知 / 展开说明"
+  var openBtn = $('#openOfficialProof');
+  var modal   = $('#officialProof');
+  var card    = modal ? modal.querySelector('.proof-card') : null;
+  var closeBtn= $('#proofClose');
+  var imgWrap = $('#proofImgWrap');
+  var img     = $('#proofImg');
+  var toggleImg = $('#toggleProofImg');
+  var copyWx  = $('#proofCopyWx');
+  var goBuy   = $('#proofGoBuy');
+  var lastFocus = null;
+
+  // 请在此设置你的购买链接（使用与立即购买相同的链接）：
+  var BUY_URL = 'https://fe.dtyuedan.cn/shop/jiage';
+  if(goBuy){ 
+    goBuy.addEventListener('click', function(e){
+      e.preventDefault();
+      window.open(BUY_URL, '_blank', 'noopener');
+    });
+  }
+
+  // 若页面已有微信号节点 #wxid，则读取；否则用按钮里的文本
+  var wxNode = document.getElementById('wxid');
+  var WX = (wxNode && (wxNode.textContent||'').trim()) || (copyWx ? (copyWx.textContent.match(/[\w-]+$/)||['Jiage01888'])[0] : 'Jiage01888');
+
+  function openProof(){
+    lastFocus = document.activeElement;
+    modal.classList.add('show'); modal.setAttribute('aria-hidden','false');
+    lockScroll(true); (card||modal).focus({preventScroll:true});
+  }
+  function closeProof(){
+    modal.classList.remove('show'); modal.setAttribute('aria-hidden','true');
+    lockScroll(false);
+    if(lastFocus && typeof lastFocus.focus==='function'){ try{ lastFocus.focus(); }catch(e){} }
+  }
+
+  if(openBtn){ openBtn.addEventListener('click', function(e){ e.preventDefault(); openProof(); }); }
+  if(closeBtn){ closeBtn.addEventListener('click', closeProof); }
+  if(modal){ modal.addEventListener('click', function(e){ if(e.target===modal) closeProof(); }); }
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && modal.classList.contains('show')) closeProof(); });
+
+  // 查看/收起截图
+  if(toggleImg){
+    toggleImg.addEventListener('click', function(){
+      if(imgWrap){ imgWrap.classList.toggle('show'); }
+    });
+  }
+  
+  // 点击截图外部区域关闭悬浮窗
+  if(imgWrap){
+    imgWrap.addEventListener('click', function(e){
+      if(e.target === imgWrap){
+        imgWrap.classList.remove('show');
+      }
+    });
+  }
+  
+  // 图片关闭按钮（移动端显示）
+  var imgCloseBtn = document.getElementById('imgClose');
+  if(imgCloseBtn){
+    imgCloseBtn.addEventListener('click', function(e){
+      e.stopPropagation(); // 阻止事件冒泡
+      imgWrap.classList.remove('show');
+    });
+  }
+
+  // 复制微信
+  if(copyWx){
+    copyWx.addEventListener('click', function(){
+      copyText(WX).then(function(){
+        var old = copyWx.textContent;
+        copyWx.textContent = '已复制，去微信添加';
+        setTimeout(function(){ copyWx.textContent = old; }, 1600);
+        // 移动端尝试拉起微信
+        try{ if(/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)){ setTimeout(function(){ location.href='weixin://'; }, 300); } }catch(_){}
+      });
+    });
+  }
+
+  // 导出函数（如需在别处触发）
+  window.openOfficialProof = openProof;
+})();
+</script>
+
+<!-- 缺货弹窗逻辑 -->
+<script>
+(function(){
+  function $(s){ return document.querySelector(s); }
+  function copyText(t){
+    if(navigator.clipboard && navigator.clipboard.writeText){ return navigator.clipboard.writeText(t); }
+    var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); }catch(e){} document.body.removeChild(ta); return Promise.resolve();
+  }
+  function lockScroll(on){ document.body.classList[on?'add':'remove']('modal-open'); }
+
+  var modal = $('#outOfStockModal');
+  var card = modal ? modal.querySelector('.modal-card') : null;
+  var closeBtn = $('#outOfStockClose');
+  var copyBtn = $('#copyWeChatOutOfStock');
+  var closeBtn2 = $('#closeOutOfStockModal');
+  var mobileBuyBtn = $('#mobileBuyBtn');
+  var lastFocus = null;
+  var WX = 'Jiage01888';
+
+  function openOutOfStockModal(){
+    lastFocus = document.activeElement;
+    modal.classList.add('show'); modal.setAttribute('aria-hidden','false');
+    lockScroll(true);
+    (card||modal).focus({preventScroll:true});
+  }
+  
+  function closeOutOfStockModal(){
+    modal.classList.remove('show'); modal.setAttribute('aria-hidden','true');
+    lockScroll(false);
+    if(lastFocus && typeof lastFocus.focus==='function'){ try{ lastFocus.focus(); }catch(e){} }
+  }
+
+  // 关闭按钮事件
+  if(closeBtn) closeBtn.addEventListener('click', closeOutOfStockModal);
+  if(closeBtn2) closeBtn2.addEventListener('click', closeOutOfStockModal);
+  if(modal) modal.addEventListener('click', function(e){ if(e.target===modal) closeOutOfStockModal(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && modal.classList.contains('show')) closeOutOfStockModal(); });
+
+  // 复制微信按钮
+  if(copyBtn){
+    copyBtn.addEventListener('click', function(){
+      copyText(WX).then(function(){
+        var old = copyBtn.textContent;
+        copyBtn.textContent = '已复制';
+        setTimeout(function(){ copyBtn.textContent = old; }, 1600);
+        // 移动端尝试拉起微信
+        try{ if(/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)){ setTimeout(function(){ location.href='weixin://'; }, 300); } }catch(_){}
+      });
+    });
+  }
+
+  // 移动端购买按钮事件
+  if(mobileBuyBtn){
+    mobileBuyBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      window.open('https://fe.dtyuedan.cn/shop/jiage', '_blank', 'noopener');
+    });
+  }
+
+  // 导出函数
+  window.openOutOfStockModal = openOutOfStockModal;
+})();
+</script>
+
+<!-- 充值系统选择弹窗逻辑 -->
+<script>
+(function(){
+  function $(s){ return document.querySelector(s); }
+  function $all(s){ return Array.prototype.slice.call(document.querySelectorAll(s)); }
+  function lockScroll(on){ document.body.classList[on?'add':'remove']('modal-open'); }
+
+  var modal = $('#rechargeSystemModal');
+  var card = modal ? modal.querySelector('.rs-card') : null;
+  var closeBtn = $('#rsClose');
+  var cancelBtn = $('#rsCancel');
+  var rechargeBtn = $('#rechargeBtn');
+  var options = $all('.rs-option');
+  var lastFocus = null;
+
+  function openRechargeSystemModal(){
+    lastFocus = document.activeElement;
+    modal.classList.add('show'); 
+    modal.setAttribute('aria-hidden','false');
+    lockScroll(true);
+    (card||modal).focus({preventScroll:true});
+  }
+  
+  function closeRechargeSystemModal(){
+    modal.classList.remove('show'); 
+    modal.setAttribute('aria-hidden','true');
+    lockScroll(false);
+    if(lastFocus && typeof lastFocus.focus==='function'){ try{ lastFocus.focus(); }catch(e){} }
+  }
+
+  // 打开弹窗
+  if(rechargeBtn){
+    rechargeBtn.addEventListener('click', function(e){
+      e.preventDefault();
+      openRechargeSystemModal();
+    });
+  }
+
+  // 关闭弹窗
+  if(closeBtn) closeBtn.addEventListener('click', closeRechargeSystemModal);
+  if(cancelBtn) cancelBtn.addEventListener('click', closeRechargeSystemModal);
+  if(modal) modal.addEventListener('click', function(e){ if(e.target===modal) closeRechargeSystemModal(); });
+  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && modal.classList.contains('show')) closeRechargeSystemModal(); });
+
+  // 点击选项跳转到对应网站
+  options.forEach(function(option){
+    option.addEventListener('click', function(){
+      var url = option.getAttribute('data-url');
+      if(url){
+        window.open(url, '_blank', 'noopener');
+        closeRechargeSystemModal();
+      }
+    });
+  });
+
+  // 导出函数
+  window.openRechargeSystemModal = openRechargeSystemModal;
+})();
+</script></body>
 </html>

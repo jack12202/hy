@@ -6,41 +6,29 @@
     <title>3分钟完成 GPT Plus 升级：支付宝支付，全自动到账！</title>
     <style>
         :root {
-            --primary: #8b5cf6;
-            --bg: #0b1220;
+            --primary: #8b5cf6; /* 紫色主色 */
+            --bg: #0b1220; /* 修复后的背景色 */
             --text-color: #e5e7eb;
             --card-bg: #1f2937;
         }
 
-        /* 🔥 终极样式保证：强制背景覆盖全屏 */
-        html, body {
-            background-color: var(--bg) !important; 
-            color: var(--text-color) !important;
-            font-family: 'Helvetica Neue', Arial, sans-serif !important;
-            min-height: 100vh !important;
-            margin: 0 !important;
-            line-height: 1.6 !important;
+        /* 统一的样式规则 */
+        html { background-color: var(--bg); }
+        body {
+            /* 字体和基本排版 */
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px 20px 80px 20px; /* 底部留空间给浮动按钮 */
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
         }
 
-        body {
-            padding: 20px 20px 80px 20px; 
-            display: flex;
-            justify-content: center;
-        }
-
-        .container {
-            max-width: 600px;
-            width: 100%;
-        }
+        .container { max-width: 600px; width: 100%; }
         
         /* 顶部导航 */
-        .nav-link {
-            display: block; 
-            margin-bottom: 20px; 
-            color: rgba(255,255,255,0.7); 
-            text-decoration: none; 
-            font-size: 0.9em;
-        }
+        .nav-link { display: block; margin-bottom: 20px; color: rgba(255,255,255,0.7); text-decoration: none; font-size: 0.9em; }
 
         h1 { color: var(--primary); text-align: center; font-size: 1.8em; margin-bottom: 30px; text-transform: uppercase; }
 
@@ -55,13 +43,23 @@
 
         .highlight { font-weight: 900; color: #34d399; font-size: 1.2em; display: inline-block; margin: 0 4px; }
         
+        /* 中间转化箱样式 */
+        .conversion-box {
+            background: linear-gradient(135deg, rgba(167,139,250,0.15), rgba(139,92,246,0.25));
+            border: 2px solid var(--primary);
+            border-radius: 14px;
+            padding: 25px;
+            text-align: center;
+            margin: 40px 0;
+        }
+        .conversion-box h3 { color: #fff; margin-top: 0; font-size: 1.4em; }
+        
         /* 购买 CTA 按钮样式 */
         .cta-button {
             display: block;
             width: 100%;
             text-align: center;
             padding: 15px 0;
-            margin-top: 40px; 
             font-size: 1.1em;
             font-weight: bold;
             text-decoration: none;
@@ -69,17 +67,18 @@
             color: white;
             background: linear-gradient(180deg, #a78bfa 0%, var(--primary) 100%); 
             box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+            transition: all 0.2s ease;
         }
         .cta-button:hover { transform: translateY(-2px); filter: brightness(1.1); }
-        
-        /* 🔥 底部浮动栏样式 */
+
+        /* 底部浮动按钮 */
         .sticky-bar {
             position: fixed;
             bottom: 0;
             left: 0;
             right: 0;
-            z-index: 9999; /* 确保在最顶层 */
-            background-color: var(--card-bg);
+            z-index: 9999;
+            background-color: #0b1220; /* 强制背景色，避免透底 */
             padding: 12px 20px;
             box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.5);
             max-width: 640px;
@@ -97,7 +96,7 @@
 
     </style>
 </head>
-<body>
+<body style="background-color: #0b1220; color: #e5e7eb;">
     <div class="container">
         <a href="/blog/" class="nav-link">&larr; 返回文章目录</a>
         
@@ -111,14 +110,18 @@
             <h2>🚀 升级，就是快</h2>
             <p>想用 GPT-4？不想等？没问题。</p>
             <p>我们的流程，目标是<span class="highlight">**效率最大化**</span>。</p>
-            <p>从下单到 Plus 权限激活，**全程自动化**。你的等待时间？几乎没有。</p>
-            <p class="efficiency-tip">⚡️ <span class="highlight">**承诺：3 分钟内搞定**</span>。</p>
+            <p>从下单到 Plus 权限激活，<strong>全程自动化</strong>。你的等待时间？几乎没有。</p>
+            <p style="text-align: right; color: var(--primary); font-style: italic;">⚡️ <span class="highlight" style="color: #34d399;">**承诺：3 分钟内搞定**</span>。</p>
         </div>
-
-        <div class="section">
+        
+        <div class="conversion-box">
+            <h3>⚡️ 别浪费时间，立即升级 GPT Plus！</h3>
+            <a href="/" class="cta-button" style="margin-top: 15px;">🛒 立即升级 GPT Plus，3 分钟到账！</a>
+        </div>
+                <div class="section">
             <h2>📱 支付，只认支付宝</h2>
             <p>找什么信用卡、虚拟卡？太麻烦了。</p>
-            <p>我们直接支持**支付宝**。打开手机，扫码，支付。</p>
+            <p>我们直接支持<strong>支付宝</strong>。打开手机，扫码，支付。</p>
             <p>国内用户享受最<span class="highlight">**无缝、最便捷**</span>的体验。简单，安全，秒速完成。</p>
         </div>
 
@@ -134,7 +137,7 @@
     </div>
     
     <div class="sticky-bar">
-        <a href="/" class="cta-button">🛒 立即升级 GPT-5，3 分钟到账！</a>
+        <a href="/" class="cta-button">🛒 立即升级 GPT Plus，3 分钟到账！</a>
     </div>
 
 </body>

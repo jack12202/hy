@@ -7,22 +7,25 @@
     <style>
         :root {
             --primary: #8b5cf6; 
-            --bg: #0b1220;
-            --text-color: #e5e7eb;
+            --bg: #0b1220; 
+            --text-color: #e5e7eb; 
             --card-bg: #1f2937;
+            --font-family: 'Helvetica Neue', Arial, sans-serif;
         }
 
-        /* 统一的样式规则 */
+        /* 强制背景和视窗 */
         html, body {
-            margin: 0;
-            padding: 0;
+            background-color: var(--bg);
+            color: var(--text-color);
+            font-family: var(--font-family);
             min-height: 100vh;
+            margin: 0;
             line-height: 1.6;
+            padding: 0;
         }
 
         body {
-            font-family: 'Helvetica Neue', Arial, sans-serif;
-            padding: 20px 20px 80px 20px;
+            padding: 20px 20px 80px 20px; /* 增加底部填充给浮动按钮让位 */
             display: flex;
             justify-content: center;
         }
@@ -32,14 +35,16 @@
             width: 100%;
         }
         
-        /* 导航链接 */
+        /* 顶部导航 */
         .nav-link {
             display: block; 
             margin-bottom: 20px; 
             color: rgba(255,255,255,0.7); 
             text-decoration: none; 
             font-size: 0.9em;
+            transition: color 0.2s;
         }
+        .nav-link:hover { color: var(--primary); }
 
         h1 {
             color: var(--primary);
@@ -47,6 +52,7 @@
             font-size: 1.8em;
             margin-bottom: 30px;
             text-transform: uppercase;
+            letter-spacing: 1px;
         }
 
         .section {
@@ -57,6 +63,22 @@
             box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
             border-left: 5px solid var(--primary);
         }
+        
+        /* 中间转化区域样式 */
+        .conversion-box {
+            background: linear-gradient(135deg, rgba(167,139,250,0.15), rgba(139,92,246,0.25));
+            border: 2px solid var(--primary);
+            border-radius: 14px;
+            padding: 25px;
+            text-align: center;
+            margin: 40px 0;
+            box-shadow: 0 6px 15px rgba(139,92,246,0.3);
+        }
+        .conversion-box h3 {
+            color: #fff;
+            margin-top: 0;
+            font-size: 1.4em;
+        }
 
         .section h2 {
             color: var(--primary);
@@ -65,10 +87,9 @@
             padding-bottom: 8px;
             margin-bottom: 15px;
         }
-        
-        /* 关键词和高亮 */
-        strong { font-weight: 900; }
+
         .highlight {
+            font-weight: 900; 
             color: #34d399; /* 绿色，代表成功/高效 */
             font-size: 1.2em; 
             display: inline-block;
@@ -76,12 +97,11 @@
         }
         
         /* 购买 CTA 按钮样式 */
-        .cta-button {
+        .cta-button, .sticky-cta {
             display: block;
             width: 100%;
             text-align: center;
             padding: 15px 0;
-            margin-top: 40px; 
             font-size: 1.1em;
             font-weight: bold;
             text-decoration: none;
@@ -89,12 +109,32 @@
             color: white;
             background: linear-gradient(180deg, #a78bfa 0%, var(--primary) 100%); 
             box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
+            transition: all 0.2s ease;
         }
-        .cta-button:hover { transform: translateY(-2px); filter: brightness(1.1); }
+        .cta-button:hover, .sticky-cta:hover {
+            transform: translateY(-2px);
+            filter: brightness(1.1);
+        }
+
+        /* 底部浮动按钮 */
+        .sticky-bar {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            z-index: 999;
+            background-color: var(--card-bg);
+            padding: 10px 20px;
+            box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.3);
+        }
+        .sticky-bar .cta-button {
+            margin: 0 auto;
+            max-width: 600px;
+        }
 
     </style>
 </head>
-<body style="background-color: #0b1220; color: #e5e7eb;">
+<body>
     <div class="container">
         <a href="/blog/" class="nav-link">&larr; 返回文章目录</a>
         
@@ -104,14 +144,18 @@
             <h2>🚀 升级，就是快</h2>
             <p>想用 GPT-4？不想等？没问题。</p>
             <p>我们的流程，目标是<span class="highlight">**效率最大化**</span>。</p>
-            <p>从下单到 Plus 权限激活，<strong>全程自动化</strong>。你的等待时间？几乎没有。</p>
+            <p>从下单到 Plus 权限激活，**全程自动化**。你的等待时间？几乎没有。</p>
             <p class="efficiency-tip">⚡️ <span class="highlight">**承诺：3 分钟内搞定**</span>。</p>
         </div>
-
-        <div class="section">
+        
+        <div class="conversion-box">
+            <h3>⚡️ 别浪费时间，立即升级 GPT-5！</h3>
+            <a href="/" class="cta-button" style="margin-top: 15px;">🛒 立即升级 GPT-5，3 分钟到账！</a>
+        </div>
+                <div class="section">
             <h2>📱 支付，只认支付宝</h2>
             <p>找什么信用卡、虚拟卡？太麻烦了。</p>
-            <p>我们直接支持<strong>支付宝</strong>。打开手机，扫码，支付。</p>
+            <p>我们直接支持**支付宝**。打开手机，扫码，支付。</p>
             <p>国内用户享受最<span class="highlight">**无缝、最便捷**</span>的体验。简单，安全，秒速完成。</p>
         </div>
 
@@ -119,12 +163,14 @@
             <h2>✅ 重点，划完了</h2>
             <p>你需要更快的 GPT，我们给你<span class="highlight">**极速升级**</span>。</p>
             <p>你需要简单的支付，我们给你<span class="highlight">**支付宝直通车**</span>。</p>
-            <p>别犹豫，时间宝贵。现在就开始升级，立刻享受 GPT-5！</p>
+            <p>别犹豫，时间宝贵。现在就开始升级，立刻享受 GPT-4！</p>
         </div>
         
+            </div>
+    
+    <div class="sticky-bar">
         <a href="/" class="cta-button">🛒 立即升级 GPT-5，3 分钟到账！</a>
-        
+    </div>
 
-    </div>
 </body>
 </html>

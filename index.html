@@ -8,14 +8,14 @@
 <title>ChatGPT Plus 极速充值中心 | 24小时自动发货 ⚡️</title>
 <style>
     :root {
-      --primary: #8b5cf6;      /* 午夜蓝绿主色（Teal） */
-      --primary-dark: #7c3aed; /* 靛青蓝强调 */
-      --accent: #a78bfa;       /* 霓虹青 */
-      --gray-300: #cbd5e1;     /* 冷灰 */
+      --primary: #8b5cf6;      /* 强调紫 */
+      --primary-dark: #7c3aed; /* 深紫强调 */
+      --accent: #a78bfa;       /* 亮紫 */
+      --gray-300: #cbd5e1;
       --gray-500: #64748b;
       --radius: 22px;
 
-      /* Brand (蓝绿) */
+      /* Brand Colors (Purple Theme) */
       --brand-500:#8b5cf6; /* 主色 */
       --brand-600:#7c3aed; /* hover/强调 */
       --brand-glass: rgba(139, 92, 246, 0.18); /* 玻璃条/轻底 */
@@ -25,10 +25,6 @@
       --brand-shadow-strong: rgba(139,92,246,.35);
       --brand-tint: rgba(167,139,250,.18);
       --brand-tint-strong: rgba(167,139,250,.28);
-
-      /* Accent (冷青点缀，更贴合底色) */
-      --accent-500:#a78bfa;
-      --accent-600:#c4b5fd;
 
       /* Neutral */
       --overlay:#0B1220;                    /* 深夜蓝弹窗/底栏背景 */
@@ -412,7 +408,7 @@
     padding: 14px 0;
     font-size: 1rem;
     font-weight: 700;
-    letter-spacing: .02em;
+    letter-spacing:.02em;
     color: #fff;
     background: linear-gradient(135deg, rgba(255,255,255,.15) 0%, rgba(255,255,255,.08) 100%);
     border: 1px solid rgba(255,255,255,.25);
@@ -596,14 +592,14 @@
   }
   .flow-support .copy-btn {
     margin-left:8px; padding:2px 6px; font-size:0.78rem;
-    border:1px solid rgba(99,102,241,.45); background: rgba(99,102,241,.18); color:#fff; border-radius:6px;
+    border:1px solid rgba(99,102,241,.45); background: rgba(99,102,241,.18); color:#1f1135; border-radius:6px;
     cursor:pointer; transition:background .2s;
   }
   .flow-support .copy-btn:hover { background: rgba(99,102,241,.28); }
   .flow-qq-toggle-btn{
     width:100%; margin-top:8px; padding:6px 8px; font-size:.8rem;
-    border:1px solid rgba(99,102,241,.45); background: rgba(99,102,241,.18); border-radius:6px;
-    cursor:pointer; color:#fff; transition:background .2s;
+    border:1px solid rgba(99,102,241,.45); background: rgba(99,102,241,.18); color:#1f1135; border-radius:6px;
+    cursor:pointer; transition:background .2s;
   }
   .flow-qq-toggle-btn:hover{ background: rgba(99,102,241,.28); }
   .flow-qq-content{ margin-top:8px; }
@@ -770,7 +766,7 @@
   max-width:520px;
   padding:0; border-radius:0;
   background: transparent;
-  color:#aef3ff; font-weight:700; border: 0;
+  color:#cfeff6; font-weight:700; border: 0;
   box-shadow: none;
   font-size:.92rem;
 }
@@ -811,7 +807,7 @@
   margin: 6px auto 2px; display:flex; align-items:center; justify-content:center;
   max-width:520px; padding:0; border-radius:0;
   background: transparent;
-  color: #aef3ff; font-weight:700; border: 0;
+  color: #cfeff6; font-weight:700; border: 0;
   box-shadow: none; font-size:.92rem;
 }
 .small-risk{ margin:8px 0 2px; text-align:center; color:rgba(255,255,255,.9); font-size:.9rem; }
@@ -874,7 +870,7 @@ body.modal-open{ overflow:hidden; }
 .sticky-note{
   position:fixed; left:0; right:0; bottom:0; z-index:30;
   display:flex; align-items:center; justify-content:center; gap:.8rem; flex-wrap:wrap;
-  padding:.7rem 1rem; background: rgba(11,18,32,.90);
+  padding:.7rem 1rem; background:rgba(11,18,32,.90);
   border-top:1px solid var(--surface-glass); backdrop-filter:saturate(140%) blur(4px);
   font-size:14px; color:#fff;
 }
@@ -884,7 +880,7 @@ body.modal-open{ overflow:hidden; }
 }
 .sticky-note .cta-outline{
   all:unset; cursor:pointer; font-weight:700; padding:.42rem .75rem; border-radius:10px;
-  border:1px solid var(--brand-outline); color:#fff;
+  border:1px solid var(--brand-outline); color:#fff; background: var(--brand-tint);
 }
 
 /* 价格·涨价说明 弹窗 */
@@ -1137,6 +1133,15 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
 </div>
 </div>
 </div>
+<script>
+var _hmt = _hmt || [];
+(function() {
+  var hm = document.createElement("script");
+  hm.src = "https://hm.baidu.com/hm.js?8da1b6039025ccb7673c067c21447e58";
+  var s = document.getElementsByTagName("script")[0]; 
+  s.parentNode.insertBefore(hm, s);
+})();
+</script>
 <script>
     function submitCode() {
       const code = document.getElementById("code").value.trim();
@@ -1419,37 +1424,6 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
   </div>
 </div>
 
-<div class="modal-mask" id="outOfStockModal" aria-hidden="true">
-  <div class="modal-card" role="dialog" aria-labelledby="outOfStockTitle" tabindex="-1">
-    <button class="modal-close" id="outOfStockClose" aria-label="关闭">×</button>
-    <h3 id="outOfStockTitle" style="margin:.2rem 0 1rem">⚠️ 系统缺货通知</h3>
-    
-    <div style="text-align: center; margin: 20px 0;">
-      <div style="font-size: 3rem; margin-bottom: 16px;">📦</div>
-      <p style="font-size: 1.1rem; line-height: 1.6; margin-bottom: 20px;">
-        很抱歉，目前全网充值系统缺货，无法自动充值。
-      </p>
-      <p style="font-size: 1rem; line-height: 1.6; margin-bottom: 24px; color: #e5e7eb;">
-        为了不影响您的使用，我们提供<strong style="color: #f97316;">人工手动代充</strong>服务。
-      </p>
-    </div>
-    
-    <div style="background: var(--brand-glass); border: 1px solid var(--surface-glass); border-radius: 12px; padding: 16px; margin: 20px 0;">
-      <p style="margin: 0; font-weight: 600; text-align: center;">
-        💬 请添加微信：<strong style="color: #f97316;">Jiage01888</strong>
-      </p>
-      <p style="margin: 8px 0 0; font-size: 0.9rem; text-align: center; opacity: 0.8;">
-        人工在线：9:00–24:00
-      </p>
-    </div>
-    
-    <div class="modal-footer">
-      <button class="cta-mini" id="copyWeChatOutOfStock">复制微信</button>
-      <button class="cta-outline" id="closeOutOfStockModal">我知道了</button>
-    </div>
-  </div>
-</div>
-
 <div class="proof-mask" id="officialProof" aria-hidden="true">
   <div class="proof-card" role="dialog" aria-labelledby="proofTitle" tabindex="-1">
     <button class="proof-close" id="proofClose" aria-label="关闭">×</button>
@@ -1511,15 +1485,20 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
   var lastFocus = null;
   var FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [tabindex]:not([tabindex="-1"])';
 
-  function setTab(tab){
-    if(!panels[tab]) tab = 'price';
-    tabBtns.forEach(function(b){ var on=b.dataset.tab===tab; b.classList.toggle('active', on); b.setAttribute('aria-selected', on?'true':'false'); });
-    Object.keys(panels).forEach(function(k){
-      if(k===tab){ panels[k].classList.add('active'); panels[k].removeAttribute('hidden'); }
-      else{ panels[k].classList.remove('active'); panels[k].setAttribute('hidden',''); }
+  function setTab(name){
+    tabs.forEach(function(b){
+      var active = b.dataset.tab === name;
+      b.classList.toggle('active', active);
+      b.setAttribute('aria-selected', active ? 'true' : 'false');
     });
-    localStorage.setItem('why_tab', tab);
+    panels.forEach(function(p){
+      var show = p.dataset.panel === name;
+      p.classList.toggle('active', show);
+      p.setAttribute('aria-hidden', show ? 'false' : 'true');
+    });
+    try { localStorage.setItem('why_tab', name); } catch(e){}
   }
+
   function openWhy(defaultTab){
     var tab = defaultTab || localStorage.getItem('why_tab') || 'price';
     setTab(tab);
@@ -1528,11 +1507,13 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
     lockScroll(true);
     (card||modal).focus({preventScroll:true});
   }
+
   function closeWhy(){
     modal.classList.remove('show'); modal.setAttribute('aria-hidden','true');
     lockScroll(false);
-    if(lastFocus && typeof lastFocus.focus==='function'){ lastFocus.focus(); }
+    if(lastFocus && typeof lastFocus.focus === 'function'){ lastFocus.focus(); }
   }
+
   function trapFocus(e){
     if(!modal.classList.contains('show') || e.key!=='Tab') return;
     var f = modal.querySelectorAll(FOCUSABLE); if(!f.length) return;
@@ -1676,101 +1657,8 @@ body.modal-open .sticky-note { opacity:.6; pointer-events:none; }
   function copyText(t){
     if(navigator.clipboard && navigator.clipboard.writeText){ return navigator.clipboard.writeText(t); }
     var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select();
-    try{ document.execCommand('copy'); }catch(e){} document.body.removeChild(ta); return Promise.resolve();
-  }
-  function lockScroll(on){ document.body.classList[on?'add':'remove']('modal-open'); }
-
-  // 入口：价格构成页签里的 "查看官方通知 / 展开说明"
-  var openBtn = $('#openOfficialProof');
-  var modal   = $('#officialProof');
-  var card    = modal ? modal.querySelector('.proof-card') : null;
-  var closeBtn= $('#proofClose');
-  var imgWrap = $('#proofImgWrap');
-  var img     = $('#proofImg');
-  var toggleImg = $('#toggleProofImg');
-  var copyWx  = $('#proofCopyWx');
-  var goBuy   = $('#proofGoBuy');
-  var lastFocus = null;
-
-  // 请在此设置你的购买链接（使用与立即购买相同的链接）：
-  var BUY_URL = 'https://fe.dtyuedan.cn/shop/jiage';
-  if(goBuy){ 
-    goBuy.addEventListener('click', function(e){
-      e.preventDefault();
-      window.open(BUY_URL, '_blank', 'noopener');
-    });
-  }
-
-  // 若页面已有微信号节点 #wxid，则读取；否则用按钮里的文本
-  var wxNode = document.getElementById('wxid');
-  var WX = (wxNode && (wxNode.textContent||'').trim()) || (copyWx ? (copyWx.textContent.match(/[\w-]+$/)||['Jiage01888'])[0] : 'Jiage01888');
-
-  function openProof(){
-    lastFocus = document.activeElement;
-    modal.classList.add('show'); modal.setAttribute('aria-hidden','false');
-    lockScroll(true); (card||modal).focus({preventScroll:true});
-  }
-  function closeProof(){
-    modal.classList.remove('show'); modal.setAttribute('aria-hidden','true');
-    lockScroll(false);
-    if(lastFocus && typeof lastFocus.focus==='function'){ try{ lastFocus.focus(); }catch(e){} }
-  }
-
-  if(openBtn){ openBtn.addEventListener('click', function(e){ e.preventDefault(); openProof(); }); }
-  if(closeBtn){ closeBtn.addEventListener('click', closeProof); }
-  if(modal){ modal.addEventListener('click', function(e){ if(e.target===modal) closeProof(); }); }
-  document.addEventListener('keydown', function(e){ if(e.key==='Escape' && modal.classList.contains('show')) closeProof(); });
-
-  // 查看/收起截图
-  if(toggleImg){
-    toggleImg.addEventListener('click', function(){
-      if(imgWrap){ imgWrap.classList.toggle('show'); }
-    });
-  }
-  
-  // 点击截图外部区域关闭悬浮窗
-  if(imgWrap){
-    imgWrap.addEventListener('click', function(e){
-      if(e.target === imgWrap){
-        imgWrap.classList.remove('show');
-      }
-    });
-  }
-  
-  // 图片关闭按钮（移动端显示）
-  var imgCloseBtn = document.getElementById('imgClose');
-  if(imgCloseBtn){
-    imgCloseBtn.addEventListener('click', function(e){
-      e.stopPropagation(); // 阻止事件冒泡
-      imgWrap.classList.remove('show');
-    });
-  }
-
-  // 复制微信
-  if(copyWx){
-    copyWx.addEventListener('click', function(){
-      copyText(WX).then(function(){
-        var old = copyWx.textContent;
-        copyWx.textContent = '已复制，去微信添加';
-        setTimeout(function(){ copyWx.textContent = old; }, 1600);
-        // 移动端尝试拉起微信
-        try{ if(/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)){ setTimeout(function(){ location.href='weixin://'; }, 300); } }catch(_){}
-      });
-    });
-  }
-
-  // 导出函数（如需在别处触发）
-  window.openOfficialProof = openProof;
-})();
-</script>
-
-<script>
-(function(){
-  function $(s){ return document.querySelector(s); }
-  function copyText(t){
-    if(navigator.clipboard && navigator.clipboard.writeText){ return navigator.clipboard.writeText(t); }
-    var ta=document.createElement('textarea'); ta.value=t; document.body.appendChild(ta); ta.select();
-    try{ document.execCommand('copy'); }catch(e){} document.body.removeChild(ta); return Promise.resolve();
+    try{ document.execCommand('copy'); }catch(e){}
+    document.body.removeChild(ta); return Promise.resolve();
   }
   function lockScroll(on){ document.body.classList[on?'add':'remove']('modal-open'); }
 

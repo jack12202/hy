@@ -6,28 +6,27 @@
     <title>3分钟完成 GPT Plus 升级：支付宝支付，全自动到账！</title>
     <style>
         :root {
-            --primary: #8b5cf6; /* 强调色：紫色 */
-            --bg: #0b1220; /* 背景色：深蓝/近黑 */
-            --text-color: #e5e7eb;
+            --primary: #8b5cf6; 
+            --bg: #0b1220; 
+            --text-color: #e5e7eb; 
             --card-bg: #1f2937;
             --font-family: 'Helvetica Neue', Arial, sans-serif;
         }
-
+        
         /* 强制背景覆盖全屏 */
-        html {
-            background-color: var(--bg); 
+        html, body {
+            background-color: var(--bg);
+            color: var(--text-color);
+            font-family: var(--font-family);
+            min-height: 100vh; /* 确保占满整个视窗高度 */
+            margin: 0;
+            line-height: 1.6;
         }
 
         body {
-            background-color: var(--bg);
-            color: var(--text-color);
-            font-family: var(--font-family);
-            margin: 0;
-            padding: 20px 20px 80px 20px; /* 增加底部填充，确保不遮挡 */
-            min-height: 100vh; /* 确保占满整个视窗高度 */
+            padding: 20px 20px 80px 20px; /* 增加底部填充 */
             display: flex;
             justify-content: center;
-            line-height: 1.6;
         }
 
         .container {
@@ -35,7 +34,7 @@
             width: 100%;
         }
         
-        /* 导航链接 */
+        /* 顶部和底部的目录导航链接 */
         .nav-link {
             display: block; 
             margin-bottom: 20px; 
@@ -91,7 +90,7 @@
             margin-top: 15px;
         }
         
-        /* 购买 CTA 按钮样式 */
+        /* 购买 CTA 按钮样式 - 必须突出 */
         .cta-button {
             display: block;
             width: 100%;
@@ -103,6 +102,7 @@
             text-decoration: none;
             border-radius: 10px;
             color: white;
+            /* 明显的紫色渐变 */
             background: linear-gradient(180deg, #a78bfa 0%, var(--primary) 100%); 
             box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
             transition: all 0.2s ease;
@@ -138,7 +138,7 @@
         <div class="section">
             <h2>✅ 重点，划完了</h2>
             <p>你需要更快的 GPT，我们给你<span class="highlight">**极速升级**</span>。</p>
-            <p>你需要简单的支付，我们给你<span class="highlight">**支付宝直通车**</span>。</p>
+            <p>你需要简单的支付，我们给你<span class="highlight">**支付宝直通车****。**</p>
             <p>别犹豫，时间宝贵。现在就开始升级，立刻享受 GPT-4！</p>
         </div>
         

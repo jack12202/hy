@@ -13,12 +13,18 @@
             --font-family: 'Helvetica Neue', Arial, sans-serif;
         }
 
+        /* 强制背景覆盖全屏 */
+        html {
+            background-color: var(--bg); 
+        }
+
         body {
             background-color: var(--bg);
             color: var(--text-color);
             font-family: var(--font-family);
             margin: 0;
-            padding: 20px;
+            padding: 20px 20px 80px 20px; /* 增加底部填充，确保不遮挡 */
+            min-height: 100vh; /* 确保占满整个视窗高度 */
             display: flex;
             justify-content: center;
             line-height: 1.6;
@@ -29,7 +35,7 @@
             width: 100%;
         }
         
-        /* 新增：返回目录链接 */
+        /* 导航链接 */
         .nav-link {
             display: block; 
             margin-bottom: 20px; 
@@ -68,7 +74,7 @@
 
         .highlight {
             font-weight: 900; 
-            color: #34d399; /* 绿色，代表成功/高效 */
+            color: #34d399; 
             font-size: 1.2em; 
             display: inline-block;
             margin: 0 4px;
@@ -85,13 +91,13 @@
             margin-top: 15px;
         }
         
-        /* 新增：购买 CTA 按钮样式 */
+        /* 购买 CTA 按钮样式 */
         .cta-button {
             display: block;
             width: 100%;
             text-align: center;
             padding: 15px 0;
-            margin-top: 40px; /* 增加与文字的间距 */
+            margin-top: 40px; 
             font-size: 1.1em;
             font-weight: bold;
             text-decoration: none;

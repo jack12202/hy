@@ -7,24 +7,22 @@
     <style>
         :root {
             --primary: #8b5cf6; 
-            --bg: #0b1220; 
-            --text-color: #e5e7eb; 
+            --bg: #0b1220;
+            --text-color: #e5e7eb;
             --card-bg: #1f2937;
-            --font-family: 'Helvetica Neue', Arial, sans-serif;
         }
-        
-        /* 强制背景覆盖全屏 */
+
+        /* 统一的样式规则 */
         html, body {
-            background-color: var(--bg);
-            color: var(--text-color);
-            font-family: var(--font-family);
-            min-height: 100vh; /* 确保占满整个视窗高度 */
             margin: 0;
+            padding: 0;
+            min-height: 100vh;
             line-height: 1.6;
         }
 
         body {
-            padding: 20px 20px 80px 20px; /* 增加底部填充 */
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            padding: 20px 20px 80px 20px;
             display: flex;
             justify-content: center;
         }
@@ -34,16 +32,14 @@
             width: 100%;
         }
         
-        /* 顶部和底部的目录导航链接 */
+        /* 导航链接 */
         .nav-link {
             display: block; 
             margin-bottom: 20px; 
             color: rgba(255,255,255,0.7); 
             text-decoration: none; 
             font-size: 0.9em;
-            transition: color 0.2s;
         }
-        .nav-link:hover { color: var(--primary); }
 
         h1 {
             color: var(--primary);
@@ -51,7 +47,6 @@
             font-size: 1.8em;
             margin-bottom: 30px;
             text-transform: uppercase;
-            letter-spacing: 1px;
         }
 
         .section {
@@ -70,27 +65,17 @@
             padding-bottom: 8px;
             margin-bottom: 15px;
         }
-
+        
+        /* 关键词和高亮 */
+        strong { font-weight: 900; }
         .highlight {
-            font-weight: 900; 
-            color: #34d399; 
+            color: #34d399; /* 绿色，代表成功/高效 */
             font-size: 1.2em; 
             display: inline-block;
             margin: 0 4px;
         }
-
-        p {
-            margin: 10px 0;
-        }
-
-        .efficiency-tip {
-            color: var(--primary);
-            font-style: italic;
-            text-align: right;
-            margin-top: 15px;
-        }
         
-        /* 购买 CTA 按钮样式 - 必须突出 */
+        /* 购买 CTA 按钮样式 */
         .cta-button {
             display: block;
             width: 100%;
@@ -102,19 +87,14 @@
             text-decoration: none;
             border-radius: 10px;
             color: white;
-            /* 明显的紫色渐变 */
             background: linear-gradient(180deg, #a78bfa 0%, var(--primary) 100%); 
             box-shadow: 0 4px 15px rgba(139, 92, 246, 0.4);
-            transition: all 0.2s ease;
         }
-        .cta-button:hover {
-            transform: translateY(-2px);
-            filter: brightness(1.1);
-        }
+        .cta-button:hover { transform: translateY(-2px); filter: brightness(1.1); }
 
     </style>
 </head>
-<body>
+<body style="background-color: #0b1220; color: #e5e7eb;">
     <div class="container">
         <a href="/blog/" class="nav-link">&larr; 返回文章目录</a>
         
@@ -124,27 +104,26 @@
             <h2>🚀 升级，就是快</h2>
             <p>想用 GPT-4？不想等？没问题。</p>
             <p>我们的流程，目标是<span class="highlight">**效率最大化**</span>。</p>
-            <p>从下单到 Plus 权限激活，**全程自动化**。你的等待时间？几乎没有。</p>
+            <p>从下单到 Plus 权限激活，<strong>全程自动化</strong>。你的等待时间？几乎没有。</p>
             <p class="efficiency-tip">⚡️ <span class="highlight">**承诺：3 分钟内搞定**</span>。</p>
         </div>
 
         <div class="section">
             <h2>📱 支付，只认支付宝</h2>
             <p>找什么信用卡、虚拟卡？太麻烦了。</p>
-            <p>我们直接支持**支付宝**。打开手机，扫码，支付。</p>
+            <p>我们直接支持<strong>支付宝</strong>。打开手机，扫码，支付。</p>
             <p>国内用户享受最<span class="highlight">**无缝、最便捷**</span>的体验。简单，安全，秒速完成。</p>
         </div>
 
         <div class="section">
             <h2>✅ 重点，划完了</h2>
             <p>你需要更快的 GPT，我们给你<span class="highlight">**极速升级**</span>。</p>
-            <p>你需要简单的支付，我们给你<span class="highlight">**支付宝直通车****。**</p>
-            <p>别犹豫，时间宝贵。现在就开始升级，立刻享受 GPT-4！</p>
+            <p>你需要简单的支付，我们给你<span class="highlight">**支付宝直通车**</span>。</p>
+            <p>别犹豫，时间宝贵。现在就开始升级，立刻享受 GPT-5！</p>
         </div>
         
-        <a href="/" class="cta-button">🛒 立即升级 GPT-4，3 分钟到账！</a>
+        <a href="/" class="cta-button">🛒 立即升级 GPT-5，3 分钟到账！</a>
         
-        <p style="text-align: center; margin-top: 20px; font-size: 0.85em;"><a href="/blog/" style="color: var(--primary); text-decoration: none;">返回更多教程 & 避坑指南</a></p>
 
     </div>
 </body>

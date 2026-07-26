@@ -454,6 +454,60 @@ h1{
   font-weight:900;
   text-align:center;
 }
+.recharge-warning{
+  margin:14px 0 0;
+  padding:14px 16px;
+  border:1px solid #fed7aa;
+  border-radius:12px;
+  background:#fff7ed;
+  color:#7c2d12;
+}
+.recharge-warning strong{
+  display:block;
+  margin-bottom:4px;
+  color:#9a3412;
+  font-size:16px;
+}
+.recharge-warning p{
+  margin:0;
+  line-height:1.65;
+}
+.recharge-warning p+p{
+  margin-top:7px;
+  font-weight:700;
+}
+.modal.night-mode .recharge-warning{
+  border-color:#fca5a5;
+  background:#fef2f2;
+  color:#7f1d1d;
+}
+.modal.night-mode .recharge-warning strong{color:#b91c1c}
+.night-ack{
+  display:flex;
+  align-items:flex-start;
+  gap:10px;
+  margin:14px 0 0;
+  padding:12px 14px;
+  border:1px solid #fecaca;
+  border-radius:12px;
+  background:#fff;
+  color:#7f1d1d;
+  font-weight:800;
+  line-height:1.55;
+  cursor:pointer;
+}
+.night-ack[hidden]{display:none}
+.night-ack input{
+  flex:0 0 auto;
+  width:18px;
+  height:18px;
+  margin:3px 0 0;
+  accent-color:#b91c1c;
+}
+.modal-option:disabled{
+  cursor:not-allowed;
+  opacity:.58;
+}
 .modal-option{
   display:flex;
   align-items:center;
@@ -772,13 +826,27 @@ window._hmt = _hmt;
 <div class="modal-mask" id="rechargeModal" aria-hidden="true">
   <div class="modal" role="dialog" aria-labelledby="rechargeTitle" tabindex="-1">
     <div class="modal-head">
-      <h3 id="rechargeTitle">即将进入 Plus 自助充值通道</h3>
+      <h3 id="rechargeTitle">进入激活系统前，请先确认</h3>
       <button class="close" id="closeRecharge" type="button" aria-label="关闭">×</button>
     </div>
-    <p class="muted">进入通道后，请按页面提示完成充值。充值成功前，请不要关闭已登录的 ChatGPT 网页，以免充值失败。</p>
-    <div class="recharge-countdown" id="rechargeCountdown">8 秒后自动进入充值通道</div>
+    <div class="recharge-warning" role="note" aria-label="避免重复充值提醒">
+      <div id="dayRechargeWarning">
+        <strong>未到账先联系客服，别急着重复充值</strong>
+        <p>提交卡密后如未到账，请联系本平台客服核实。客服时间：每天 9:00—23:00。</p>
+        <p>原订单确认前，请勿购买或提交第二张卡密。否则可能两张卡密都被消耗，但会员时长没有叠加，账号有效期仍然只有一个月。</p>
+      </div>
+      <div id="nightRechargeWarning" hidden>
+        <strong>夜间到账可能延迟，请先不要重复充值</strong>
+        <p>当前为非客服工作时间（23:00—次日 9:00）。夜间订单可能需要排队处理，不一定立即到账。页面暂未显示成功，不代表充值失败，原卡密仍可能稍后到账。</p>
+        <p>原订单确认前，请暂停购买或提交新的卡密——无论是在本平台还是其他平台购买。否则可能两张卡密都被消耗，但会员时长没有叠加，账号有效期仍然只有一个月；已消耗卡密无法撤销或退款。</p>
+      </div>
+    </div>
+    <label class="night-ack" id="nightRechargeAckRow" hidden>
+      <input id="nightRechargeAck" type="checkbox">
+      <span>我已知晓：夜间未到账需要等人工核实，不购买或提交第二张卡密。</span>
+    </label>
     <div class="modal-list">
-      <button class="modal-option rs-option" data-url="https://www.gptc.cc/activate/?source=gptc" type="button"><span><strong>我知道了，进入充值通道</strong><br><span class="muted">保持 ChatGPT 网页打开，不要退出登录或关闭页面</span></span><span class="tag">进入</span></button>
+      <button class="modal-option rs-option" data-url="https://www.gptc.cc/activate/?source=gptc" id="rechargeEnterBtn" type="button"><span><strong id="rechargeEnterTitle">我已了解，进入激活系统</strong><br><span class="muted" id="rechargeEnterDesc">未确认原订单前，不购买或提交第二张卡密</span></span><span class="tag">进入</span></button>
     </div>
     <button class="btn btn-outline" id="cancelRecharge" type="button">暂不进入</button>
   </div>
@@ -792,13 +860,49 @@ window._hmt = _hmt;
   const WX_ID = (document.getElementById('wxid')?.textContent || 'jiage01888').trim();
   const $ = (sel, root=document) => root.querySelector(sel);
   const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
-  const RECHARGE_COUNTDOWN_SECONDS = 8;
-  let rechargeTimer = null;
-  let rechargeRemaining = RECHARGE_COUNTDOWN_SECONDS;
+  const NIGHT_START_HOUR = 23;
+  const DAY_START_HOUR = 9;
+  const NIGHT_GATE_SECONDS = 3;
+  const NIGHT_PREVIEW = new URLSearchParams(window.location.search).get('preview') === 'night';
   let rechargeTargetUrl = RECHARGE_URL;
   let rechargeNavigated = false;
+  let nightMode = null;
+  let nightGateTimer = null;
+  let nightGateRemaining = 0;
+  let nightDelayPassed = false;
 
   function openNew(url){ window.open(url, '_blank', 'noopener'); }
+  function getBeijingHour(){
+    const hourPart = new Intl.DateTimeFormat('en-GB',{
+      timeZone:'Asia/Shanghai',
+      hour:'2-digit',
+      hourCycle:'h23'
+    }).formatToParts(new Date()).find(part=>part.type === 'hour');
+    return Number(hourPart?.value || 0);
+  }
+  function shouldUseNightMode(){
+    if(NIGHT_PREVIEW) return true;
+    const hour = getBeijingHour();
+    return hour >= NIGHT_START_HOUR || hour < DAY_START_HOUR;
+  }
+  function getNightNoticeKey(){
+    const beijingNow = Date.now() + 8 * 60 * 60 * 1000;
+    const nightBucket = Math.floor((beijingNow + 60 * 60 * 1000) / (24 * 60 * 60 * 1000));
+    return 'gptc-night-recharge-notice-' + nightBucket;
+  }
+  function wasNightNoticeShown(){
+    if(NIGHT_PREVIEW) return false;
+    try{
+      return sessionStorage.getItem(getNightNoticeKey()) === '1';
+    }catch(e){
+      return false;
+    }
+  }
+  function markNightNoticeShown(){
+    try{
+      sessionStorage.setItem(getNightNoticeKey(),'1');
+    }catch(e){}
+  }
   function showToast(text){
     const el = $('#toast');
     if(!el) return;
@@ -826,57 +930,114 @@ window._hmt = _hmt;
       showToast('复制失败，请手动复制：' + WX_ID);
     }
   }
+  function updateNightGate(){
+    const enterBtn = $('#rechargeEnterBtn');
+    const enterTitle = $('#rechargeEnterTitle');
+    const ack = $('#nightRechargeAck');
+    if(!enterBtn || !enterTitle) return;
+    if(!nightMode){
+      enterBtn.disabled = false;
+      enterTitle.textContent = '我已了解，进入激活系统';
+      return;
+    }
+    const checked = Boolean(ack?.checked);
+    enterBtn.disabled = !(nightDelayPassed && checked);
+    if(!nightDelayPassed){
+      enterTitle.textContent = '请先阅读夜间提醒（' + nightGateRemaining + '秒）';
+    }else if(!checked){
+      enterTitle.textContent = '请勾选确认后继续';
+    }else{
+      enterTitle.textContent = '我已了解风险，继续进入激活系统';
+    }
+  }
+  function resetNightGate(){
+    if(nightGateTimer){
+      clearInterval(nightGateTimer);
+      nightGateTimer = null;
+    }
+    const ack = $('#nightRechargeAck');
+    if(ack) ack.checked = false;
+    if(!nightMode){
+      nightDelayPassed = true;
+      updateNightGate();
+      return;
+    }
+    nightDelayPassed = false;
+    nightGateRemaining = NIGHT_GATE_SECONDS;
+    updateNightGate();
+    nightGateTimer = setInterval(()=>{
+      nightGateRemaining -= 1;
+      if(nightGateRemaining <= 0){
+        clearInterval(nightGateTimer);
+        nightGateTimer = null;
+        nightDelayPassed = true;
+      }
+      updateNightGate();
+    },1000);
+  }
+  function applyRechargeTimeMode(allowAutoOpen){
+    const nextNightMode = shouldUseNightMode();
+    const modeChanged = nightMode !== nextNightMode;
+    nightMode = nextNightMode;
+    const dialog = $('#rechargeModal .modal');
+    dialog?.classList.toggle('night-mode',nightMode);
+    const title = $('#rechargeTitle');
+    if(title) title.textContent = nightMode ? '当前为夜间时段，请先确认' : '进入激活系统前，请先确认';
+    const dayWarning = $('#dayRechargeWarning');
+    const nightWarning = $('#nightRechargeWarning');
+    const ackRow = $('#nightRechargeAckRow');
+    if(dayWarning) dayWarning.hidden = nightMode;
+    if(nightWarning) nightWarning.hidden = !nightMode;
+    if(ackRow) ackRow.hidden = !nightMode;
+    const enterDesc = $('#rechargeEnterDesc');
+    if(enterDesc){
+      enterDesc.textContent = nightMode
+        ? '夜间未到账先等人工核实，不购买或提交第二张卡密'
+        : '未确认原订单前，不购买或提交第二张卡密';
+    }
+    const cancelBtn = $('#cancelRecharge');
+    if(cancelBtn) cancelBtn.textContent = nightMode ? '暂不操作，等客服上班' : '暂不进入';
+    if(modeChanged && $('#rechargeModal')?.classList.contains('show')) resetNightGate();
+    if(modeChanged && nightMode && allowAutoOpen && !wasNightNoticeShown()){
+      markNightNoticeShown();
+      setTimeout(()=>{
+        if(shouldUseNightMode() && !$('#rechargeModal')?.classList.contains('show')) openRecharge();
+      },900);
+    }
+  }
   function openRecharge(){
+    applyRechargeTimeMode(false);
     const modal = $('#rechargeModal');
     rechargeTargetUrl = RECHARGE_URL;
     modal?.classList.add('show');
     modal?.setAttribute('aria-hidden','false');
     document.body.classList.add('modal-open');
     setTimeout(()=>modal?.querySelector('[role="dialog"]')?.focus?.(),0);
-    startRechargeCountdown();
+    rechargeNavigated = false;
+    resetNightGate();
   }
   function closeRecharge(){
-    stopRechargeCountdown();
+    if(nightGateTimer){
+      clearInterval(nightGateTimer);
+      nightGateTimer = null;
+    }
     const modal = $('#rechargeModal');
     modal?.classList.remove('show');
     modal?.setAttribute('aria-hidden','true');
     document.body.classList.remove('modal-open');
   }
-  function updateRechargeCountdown(){
-    const el = $('#rechargeCountdown');
-    if(el) el.textContent = rechargeRemaining + ' 秒后自动进入充值通道';
-  }
-  function stopRechargeCountdown(){
-    if(rechargeTimer){
-      clearInterval(rechargeTimer);
-      rechargeTimer = null;
-    }
-  }
   function enterRecharge(){
+    if($('#rechargeEnterBtn')?.disabled) return;
     if(rechargeNavigated) return;
     rechargeNavigated = true;
-    stopRechargeCountdown();
     openNew(rechargeTargetUrl);
     closeRecharge();
-  }
-  function startRechargeCountdown(){
-    stopRechargeCountdown();
-    rechargeNavigated = false;
-    rechargeRemaining = RECHARGE_COUNTDOWN_SECONDS;
-    updateRechargeCountdown();
-    rechargeTimer = setInterval(()=>{
-      rechargeRemaining -= 1;
-      if(rechargeRemaining <= 0){
-        enterRecharge();
-        return;
-      }
-      updateRechargeCountdown();
-    }, 1000);
   }
 
   $$('.copy-btn').forEach(btn=>btn.addEventListener('click', e=>{e.preventDefault();copyWx();}));
   $('#closeRecharge')?.addEventListener('click', closeRecharge);
   $('#cancelRecharge')?.addEventListener('click', closeRecharge);
+  $('#nightRechargeAck')?.addEventListener('change', updateNightGate);
   $('#rechargeModal')?.addEventListener('click', e=>{if(e.target === e.currentTarget) closeRecharge();});
   document.addEventListener('keydown', e=>{if(e.key === 'Escape') closeRecharge();});
   $$('#navRecharge, .recharge-btn, a[href="https://www.gptc.cc/activate/?source=gptc"]').forEach(link=>link.addEventListener('click', e=>{
@@ -888,6 +1049,8 @@ window._hmt = _hmt;
     rechargeTargetUrl = btn.getAttribute('data-url') || RECHARGE_URL;
     enterRecharge();
   }));
+  applyRechargeTimeMode(true);
+  setInterval(()=>applyRechargeTimeMode(true),30000);
 })();
 </script>
 </body>

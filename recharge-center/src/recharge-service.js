@@ -156,6 +156,30 @@ export const rechargeService = {
     };
   },
 
+  async queryCardStatus(cardInfo, provider) {
+    if (!requiredString(cardInfo)) {
+      return { ok: false, status: 400, message: "请先输入卡密。" };
+    }
+
+    const selectedProvider = resolveProvider(provider);
+    const adapter = getProviderAdapter(selectedProvider);
+    if (typeof adapter.queryCardStatus !== "function") {
+      return { ok: false, status: 400, message: "当前充值通道暂不支持单独查询卡密状态。" };
+    }
+
+    const upstream = await adapter.queryCardStatus({ cardInfo: cardInfo.trim() });
+    return {
+      ok: upstream.ok,
+      status: upstream.ok ? 200 : upstream.status && upstream.status < 500 ? upstream.status : 502,
+      data: {
+        ...upstream.data,
+        selectedProvider,
+        defaultProvider: defaultProvider()
+      },
+      message: upstream.data?.message || ""
+    };
+  },
+
   parseSecret(secretJsonText) {
     const result = parseSecretPayload(secretJsonText);
     if (!result.ok) {
@@ -271,6 +295,7 @@ export const rechargeService = {
         taskId: upstreamTaskId,
         status,
         message,
+        queueSubmitted: selectedProvider === "czgpt",
         ...providerData
       }
     };
@@ -341,6 +366,8 @@ export const rechargeService = {
           ok: upstream.ok,
           status: upstream.status,
           upstreamStatus: upstream.data?.upstreamStatus || nextStatus,
+          queueAhead: upstream.data?.queueAhead ?? null,
+          remainingSeconds: upstream.data?.remainingSeconds ?? null,
           message
         })
       });
@@ -354,6 +381,9 @@ export const rechargeService = {
         taskId,
         status: nextStatus,
         message,
+        upstreamStatus: upstream.data?.upstreamStatus || "",
+        queueAhead: upstream.data?.queueAhead ?? null,
+        remainingSeconds: upstream.data?.remainingSeconds ?? null,
         ...normalizedProviderData(selectedProvider)
       }
     };

@@ -11,6 +11,16 @@ function errorMessage(raw, fallback) {
   return fallback;
 }
 
+function maskEmail(value = "") {
+  const email = typeof value === "string" ? value.trim() : "";
+  const at = email.indexOf("@");
+  if (at <= 0) return "";
+  const name = email.slice(0, at);
+  const domain = email.slice(at + 1);
+  const visible = name.length <= 2 ? name.slice(0, 1) : `${name.slice(0, 2)}…${name.slice(-1)}`;
+  return `${visible}@${domain}`;
+}
+
 function normalizeVerify(raw, cardCode) {
   const item = Array.isArray(raw.data) ? raw.data[0] || {} : {};
   const cardType = typeof item.type === "string" ? item.type : "";
@@ -35,6 +45,23 @@ function normalizeVerify(raw, cardCode) {
     productId: config.defaultProductId,
     message,
     raw: item
+  };
+}
+
+function normalizeCardStatus(raw) {
+  const item = Array.isArray(raw.data) ? raw.data[0] || {} : {};
+  const cardStatus = typeof item.status === "string" ? item.status : "unknown";
+
+  return {
+    success: raw.ok,
+    provider: "czgpt",
+    providerLabel: "l",
+    cardStatus,
+    cardType: typeof item.type === "string" ? item.type : "",
+    isDistributed: item.is_distributed !== false,
+    boundEmailMasked: maskEmail(item.bound_email),
+    usedAt: typeof item.used_at === "string" ? item.used_at : "",
+    message: raw.ok ? "" : errorMessage(raw, "卡密状态查询失败，请稍后重试。")
   };
 }
 
@@ -90,6 +117,21 @@ export const czgptAdapter = {
     const data = normalizeVerify(raw, cardCode);
     return {
       ok: data.success,
+      status: raw.status,
+      data
+    };
+  },
+
+  async queryCardStatus({ cardInfo }) {
+    const cardCode = extractCardCode(cardInfo);
+    const raw = await requestJson(config.resellerBaseUrl, "/api/v1/kami/status", {
+      method: "POST",
+      headers: { "Content-Type": "text/plain" },
+      body: cardCode
+    });
+    const data = normalizeCardStatus(raw);
+    return {
+      ok: raw.ok,
       status: raw.status,
       data
     };

@@ -391,6 +391,13 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === "POST" && url.pathname === "/api/recharge/query-card-status") {
+      const body = await readJsonBody(req);
+      const result = await rechargeService.queryCardStatus(body.cardInfo, body.provider);
+      sendJson(res, result.status, result.ok ? { success: true, data: result.data } : { success: false, message: result.message || "卡密状态查询失败。", data: result.data });
+      return;
+    }
+
     if (req.method === "POST" && url.pathname === "/api/recharge/parse-secret") {
       const body = await readJsonBody(req);
       const result = rechargeService.parseSecret(body.secretJsonText);

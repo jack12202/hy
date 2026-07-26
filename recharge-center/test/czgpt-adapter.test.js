@@ -1,5 +1,8 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import http from "node:http";
+import os from "node:os";
+import path from "node:path";
 import test from "node:test";
 
 function readBody(req) {
@@ -18,17 +21,19 @@ function sendJson(res, status, value) {
 
 test("l channel adapter verifies, starts and polls a GPT Pro task", async t => {
   let pollCount = 0;
+  let cardStatusCount = 0;
   const upstream = http.createServer(async (req, res) => {
     if (req.method === "POST" && req.url === "/api/v1/kami/status") {
       const code = await readBody(req);
       assert.equal(req.headers["content-type"], "text/plain");
+      cardStatusCount += 1;
       sendJson(res, 200, [{
         code,
-        status: "unused",
+        status: cardStatusCount === 1 ? "unused" : "used",
         is_distributed: true,
         type: "gpt_pro_20x",
-        bound_email: null,
-        used_at: null
+        bound_email: cardStatusCount === 1 ? null : "test@example.com",
+        used_at: cardStatusCount === 1 ? null : "2026-07-27T01:02:03Z"
       }]);
       return;
     }
@@ -53,7 +58,9 @@ test("l channel adapter verifies, starts and polls a GPT Pro task", async t => {
       sendJson(res, 200, {
         id: "task-test",
         status: pollCount === 1 ? "working" : "succeeded",
-        message: pollCount === 1 ? "处理中" : "充值成功"
+        message: pollCount === 1 ? "处理中" : "充值成功",
+        remaining_seconds: pollCount === 1 ? 47 : 0,
+        queue_ahead: pollCount === 1 ? 3 : 0
       });
       return;
     }
@@ -65,6 +72,8 @@ test("l channel adapter verifies, starts and polls a GPT Pro task", async t => {
   t.after(() => new Promise(resolve => upstream.close(resolve)));
   const address = upstream.address();
   process.env.RESELLER_BASE_URL = `http://127.0.0.1:${address.port}`;
+  process.env.DATA_FILE = path.join(os.tmpdir(), `gptc-czgpt-test-${Date.now()}.json`);
+  t.after(() => fs.rmSync(process.env.DATA_FILE, { force: true }));
 
   const { czgptAdapter } = await import(`../src/providers/czgpt-adapter.js?test=${Date.now()}`);
   const verified = await czgptAdapter.verifyCard({ cardInfo: "G20XTESTCODE1234" });
@@ -82,9 +91,31 @@ test("l channel adapter verifies, starts and polls a GPT Pro task", async t => {
   assert.equal(started.ok, true);
   assert.equal(started.data.taskId, "task-test");
 
+  const cardStatus = await czgptAdapter.queryCardStatus({ cardInfo: "G20XTESTCODE1234" });
+  assert.equal(cardStatus.ok, true);
+  assert.equal(cardStatus.data.cardStatus, "used");
+  assert.equal(cardStatus.data.boundEmailMasked, "te…t@example.com");
+  assert.equal(cardStatus.data.usedAt, "2026-07-27T01:02:03Z");
+
   const working = await czgptAdapter.queryTaskStatus({ taskId: "task-test" });
   assert.equal(working.data.status, "processing");
+  assert.equal(working.data.queueAhead, 3);
+  assert.equal(working.data.remainingSeconds, 47);
 
   const succeeded = await czgptAdapter.queryTaskStatus({ taskId: "task-test" });
   assert.equal(succeeded.data.status, "success");
+
+  pollCount = 0;
+  const { rechargeService } = await import(`../src/recharge-service.js?test=${Date.now()}`);
+  const serviceStatus = await rechargeService.queryTaskStatus({
+    taskId: "task-test",
+    provider: "czgpt"
+  });
+  assert.equal(serviceStatus.ok, true);
+  assert.equal(serviceStatus.data.queueAhead, 3);
+  assert.equal(serviceStatus.data.remainingSeconds, 47);
+
+  const serviceCardStatus = await rechargeService.queryCardStatus("G20XTESTCODE1234", "czgpt");
+  assert.equal(serviceCardStatus.ok, true);
+  assert.equal(serviceCardStatus.data.cardStatus, "used");
 });

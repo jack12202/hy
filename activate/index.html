@@ -746,6 +746,7 @@ window._hmt = _hmt;
           </div>
           <div class="btn-row">
             <button class="primary" type="button" id="verifyCardBtn" onclick="verifyCard()">验证激活码</button>
+            <button class="secondary" type="button" id="queryCardStatusBtn" onclick="queryCardStatusFromInput()">卡密使用查询</button>
             <a rel="noopener" target="_blank" class="link-btn secondary" href="https://fe.dtyuedan.cn/shop/jiage">去购买激活码</a>
           </div>
           <div class="notice is-empty" id="step1Notice"></div>
@@ -1191,6 +1192,33 @@ window._hmt = _hmt;
           button.disabled = false;
           button.textContent = "查询这张卡密状态";
         });
+      }
+    }
+
+    async function queryCardStatusFromInput() {
+      const cardInfo = document.getElementById("cardInfo").value.trim();
+      const button = document.getElementById("queryCardStatusBtn");
+      if (!cardInfo) {
+        setNotice("step1Notice", "请输入卡密", "输入需要查询的卡密后，再点击“卡密使用查询”。", "error");
+        return;
+      }
+      button.disabled = true;
+      button.textContent = "查询中...";
+      try {
+        const data = await postJson("/api/recharge/query-card-status", {
+          cardInfo,
+          provider: "czgpt"
+        });
+        if (!data.success) {
+          throw new Error(data.message || "卡密状态查询失败，请稍后重试。");
+        }
+        const message = mapQueriedCardStatus(data.data || {});
+        setNotice("step1Notice", "卡密使用查询结果", message, "success");
+      } catch (error) {
+        setNotice("step1Notice", "卡密状态查询失败", error.message || "请稍后重试或联系人工。", "error");
+      } finally {
+        button.disabled = false;
+        button.textContent = "卡密使用查询";
       }
     }
 

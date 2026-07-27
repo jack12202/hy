@@ -885,24 +885,6 @@ window._hmt = _hmt;
     const hour = getBeijingHour();
     return hour >= NIGHT_START_HOUR || hour < DAY_START_HOUR;
   }
-  function getNightNoticeKey(){
-    const beijingNow = Date.now() + 8 * 60 * 60 * 1000;
-    const nightBucket = Math.floor((beijingNow + 60 * 60 * 1000) / (24 * 60 * 60 * 1000));
-    return 'gptc-night-recharge-notice-' + nightBucket;
-  }
-  function wasNightNoticeShown(){
-    if(NIGHT_PREVIEW) return false;
-    try{
-      return sessionStorage.getItem(getNightNoticeKey()) === '1';
-    }catch(e){
-      return false;
-    }
-  }
-  function markNightNoticeShown(){
-    try{
-      sessionStorage.setItem(getNightNoticeKey(),'1');
-    }catch(e){}
-  }
   function showToast(text){
     const el = $('#toast');
     if(!el) return;
@@ -975,7 +957,7 @@ window._hmt = _hmt;
       updateNightGate();
     },1000);
   }
-  function applyRechargeTimeMode(allowAutoOpen){
+  function applyRechargeTimeMode(){
     const nextNightMode = shouldUseNightMode();
     const modeChanged = nightMode !== nextNightMode;
     nightMode = nextNightMode;
@@ -998,15 +980,9 @@ window._hmt = _hmt;
     const cancelBtn = $('#cancelRecharge');
     if(cancelBtn) cancelBtn.textContent = nightMode ? '暂不操作，等客服上班' : '暂不进入';
     if(modeChanged && $('#rechargeModal')?.classList.contains('show')) resetNightGate();
-    if(modeChanged && nightMode && allowAutoOpen && !wasNightNoticeShown()){
-      markNightNoticeShown();
-      setTimeout(()=>{
-        if(shouldUseNightMode() && !$('#rechargeModal')?.classList.contains('show')) openRecharge();
-      },900);
-    }
   }
   function openRecharge(){
-    applyRechargeTimeMode(false);
+    applyRechargeTimeMode();
     const modal = $('#rechargeModal');
     rechargeTargetUrl = RECHARGE_URL;
     modal?.classList.add('show');
@@ -1049,8 +1025,8 @@ window._hmt = _hmt;
     rechargeTargetUrl = btn.getAttribute('data-url') || RECHARGE_URL;
     enterRecharge();
   }));
-  applyRechargeTimeMode(true);
-  setInterval(()=>applyRechargeTimeMode(true),30000);
+  applyRechargeTimeMode();
+  setInterval(applyRechargeTimeMode,30000);
 })();
 </script>
 </body>

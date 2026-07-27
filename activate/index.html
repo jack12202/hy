@@ -437,6 +437,18 @@
       color: #9f1239;
       box-shadow: 0 20px 40px rgba(225, 29, 72, 0.10);
     }
+    .result-card.review {
+      border-color: #fbbf24;
+      background: linear-gradient(180deg, #fffbeb 0%, #fff7d6 100%);
+      color: #92400e;
+      box-shadow: 0 20px 40px rgba(217, 119, 6, 0.12);
+    }
+    .result-card.syncing {
+      border-color: #93c5fd;
+      background: linear-gradient(180deg, #eff6ff 0%, #e0f2fe 100%);
+      color: #1e40af;
+      box-shadow: 0 20px 40px rgba(37, 99, 235, 0.12);
+    }
     .result-top {
       display: flex;
       justify-content: space-between;
@@ -478,6 +490,10 @@
     }
     .result-card.fail .result-badge {
       border-color: rgba(159,18,57,0.14);
+    }
+    .result-card.review .result-badge,
+    .result-card.syncing .result-badge {
+      border-color: rgba(146, 64, 14, 0.14);
     }
     .result-actions {
       margin-top: 16px;
@@ -532,6 +548,22 @@
       padding: 0;
       border: 0;
       background: transparent;
+    }
+    .status-action-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 0 !important;
+      border: 0 !important;
+      background: transparent !important;
+    }
+    .status-action-row button {
+      flex: 1 1 170px;
+      min-height: 42px;
+    }
+    .status-action-row .support-action {
+      width: auto;
+      margin-top: 0;
     }
     .toast {
       position: fixed;
@@ -867,6 +899,8 @@ window._hmt = _hmt;
     let currentSiteSource = "gptc";
     let toastTimer = 0;
     let lastCardStatusMessage = "";
+    let pollTimer = 0;
+    let pollInFlight = false;
 
     function showToast(text) {
       const toast = document.getElementById("toast");
@@ -1019,9 +1053,12 @@ window._hmt = _hmt;
 
     function mapRechargeMessage(message, status) {
       const code = typeof message === "string" ? message.trim() : "";
+      if (status === "queued") return code || "充值请求已提交，正在排队等待处理。";
+      if (status === "syncing") return code || "卡密已使用，账号会员状态可能仍在同步。";
+      if (status === "needs_review") return code || "充值结果暂时无法确认，系统会继续查询。";
       if (code === "SYSTEM_BUSY") return "系统繁忙，请稍后再试。";
       if (code === "TASK_NOT_FOUND") return "没有查到这笔充值记录，请稍后刷新重试。";
-      if (code === "CARD_ALREADY_USED") return "这张激活码已经使用过了，请更换其他激活码。";
+      if (code === "CARD_ALREADY_USED") return "这张卡密已使用，请先核查原充值结果，不要更换或提交第二张卡密。";
       if (code === "CARD_NOT_FOUND") return "激活码不存在，请检查后重新输入。";
       if (code === "ACCOUNT_VERIFY_FAILED") return "账号校验失败，请重新获取充值密钥后再试。";
       if (code === "ACCOUNT_NOT_MATCH") return "账号信息不匹配，请重新登录要充值的账号后获取新的充值密钥。";
@@ -1053,7 +1090,7 @@ window._hmt = _hmt;
       const checkbox = document.getElementById("overwriteRecharge");
       const button = document.getElementById("confirmRechargeBtn");
       if (!checkbox || !button) return;
-      button.disabled = !checkbox.checked;
+      button.disabled = Boolean(currentTaskId) || !checkbox.checked;
     }
 
     function updateVerifiedCardDisplay(cardInfo) {
@@ -1085,6 +1122,7 @@ window._hmt = _hmt;
     function renderProgressBox(message, task = {}) {
       const progressBox = document.getElementById("progressBox");
       const isQueueChannel = currentProvider === "czgpt";
+      const isActivelyProcessing = task.upstreamStatus === "working" || task.status === "processing";
       const queueAhead = Number(task.queueAhead);
       const hasQueueAhead = task.queueAhead !== null && task.queueAhead !== undefined && Number.isFinite(queueAhead);
       const queueLine = isQueueChannel && hasQueueAhead
@@ -1094,7 +1132,7 @@ window._hmt = _hmt;
         : "";
       const remainingLine = isQueueChannel ? formatRemainingTime(task.remainingSeconds) : "";
       progressBox.innerHTML = `
-        <strong>${isQueueChannel ? "充值请求已提交，正在排队处理" : "充值已提交，正在处理中"}</strong>
+        <strong>${isQueueChannel ? (isActivelyProcessing ? "已进入充值流程，系统正在处理" : "充值请求已提交，正在排队处理") : "充值已提交，正在处理中"}</strong>
         <div>${escapeHtml(message)}</div>
         <div class="queue-meta">
           ${queueLine ? `<div>${escapeHtml(queueLine)}</div>` : ""}
@@ -1105,10 +1143,21 @@ window._hmt = _hmt;
       `;
     }
 
+    function statusActionButtonsHtml() {
+      return `
+        <div class="status-action-row">
+          <button class="card-status-button" type="button" onclick="pollStatus(true)">刷新充值进度</button>
+          <button class="support-action" type="button" onclick="copySupportContact()">联系人工核查</button>
+        </div>
+      `;
+    }
+
     function renderResultBox(type, message) {
       const resultBox = document.getElementById("resultBox");
       const success = type === "success";
-      resultBox.className = `result-card ${success ? "success" : "fail"}`;
+      const syncing = type === "syncing";
+      const review = type === "review";
+      resultBox.className = `result-card ${success ? "success" : syncing ? "syncing" : review ? "review" : "fail"}`;
       resultBox.innerHTML = success
         ? `
           <div class="result-top">
@@ -1124,6 +1173,38 @@ window._hmt = _hmt;
             ${cardStatusToolsHtml()}
           </div>
         `
+        : syncing
+          ? `
+            <div class="result-top">
+              <div class="result-heading">
+                <h3 class="result-title">卡密已使用，等待账号同步</h3>
+                <p class="result-subtitle">${escapeHtml(message)}</p>
+              </div>
+              <span class="result-badge">已使用</span>
+            </div>
+            <div class="result-actions">
+              <div>卡密已经被系统接收，请不要重复提交，也不要到其他平台再次购买卡密。</div>
+              <div>如果账号暂未显示 AI Plus，请稍等片刻后重新打开账号页面；系统仍会继续查询任务结果。</div>
+              ${statusActionButtonsHtml()}
+              ${cardStatusToolsHtml()}
+            </div>
+          `
+          : review
+            ? `
+              <div class="result-top">
+                <div class="result-heading">
+                  <h3 class="result-title">充值结果待确认</h3>
+                  <p class="result-subtitle">${escapeHtml(message)}</p>
+                </div>
+                <span class="result-badge">待核查</span>
+              </div>
+              <div class="result-actions">
+                <div>暂时没有取得最终结果，不代表充值失败。系统会继续自动查询。</div>
+                <div>原任务确认前，请勿重复提交或购买其他平台卡密，避免两张卡密同时被消耗。</div>
+                ${statusActionButtonsHtml()}
+                ${cardStatusToolsHtml()}
+              </div>
+            `
         : `
           <div class="result-top">
             <div class="result-heading">
@@ -1146,7 +1227,7 @@ window._hmt = _hmt;
       const status = data.cardStatus || "unknown";
       let message = "";
       if (status === "unused") message = "卡密状态：暂显示未使用。任务可能仍在排队，请以本页自动查询的充值结果为准。";
-      else if (status === "used") message = "卡密状态：已使用，说明卡密已被系统接收；是否到账请以本页充值任务结果为准。";
+      else if (status === "used") message = "卡密状态：已使用，说明本次充值已被系统接收。若会员暂未显示，请等待账号状态同步，不要提交其他卡密。";
       else if (status === "bound") message = "卡密状态：已绑定，正在处理。";
       else if (status === "not_found") message = "卡密状态：未查询到，请检查卡密是否完整。";
       else message = `卡密状态：${status}`;
@@ -1340,6 +1421,10 @@ window._hmt = _hmt;
       const button = document.getElementById("confirmRechargeBtn");
       const progressBox = document.getElementById("progressBox");
       const resultBox = document.getElementById("resultBox");
+      if (currentTaskId) {
+        setNotice("step3Notice", "充值任务已经提交", "系统正在查询原任务，请不要重复提交卡密。", "success");
+        return;
+      }
       if (!currentParsedSecret) {
         setNotice("step3Notice", "充值提交失败", "请先返回上一步校验账号信息。", "error");
         return;
@@ -1369,22 +1454,34 @@ window._hmt = _hmt;
         }
         currentOrderId = task.orderId || "";
         currentTaskId = task.taskId;
+        clearTimeout(pollTimer);
         setCurrentProvider(task.provider || currentProvider, { locked: true });
         currentProviderLabel = task.providerLabel || currentProviderLabel;
         lastCardStatusMessage = "";
-        renderProgressBox(mapRechargeMessage(task.message, task.processing ? "processing" : ""), task);
+        renderProgressBox(mapRechargeMessage(task.message, task.status || "queued"), task);
         pollStatus();
       } catch (error) {
         setNotice("step3Notice", "充值提交失败", error.message || "网络请求异常。", "error");
         progressBox.style.display = "none";
       } finally {
-        button.disabled = false;
-        button.textContent = "确认充值";
+        button.disabled = Boolean(currentTaskId) || !document.getElementById("overwriteRecharge").checked;
+        button.textContent = currentTaskId ? "已提交，正在查询" : "确认充值";
       }
     }
 
-    async function pollStatus() {
+    function schedulePoll(delay) {
+      clearTimeout(pollTimer);
+      pollTimer = window.setTimeout(() => pollStatus(false), delay);
+    }
+
+    async function pollStatus(manual = false) {
       if (!currentTaskId) return;
+      if (pollInFlight) {
+        if (manual) showToast("正在查询充值进度，请稍候");
+        return;
+      }
+      pollInFlight = true;
+      clearTimeout(pollTimer);
       const resultBox = document.getElementById("resultBox");
       const progressBox = document.getElementById("progressBox");
       try {
@@ -1396,25 +1493,50 @@ window._hmt = _hmt;
           provider: currentProvider || undefined
         });
         const task = data.data || {};
+        if (task.cardStatus) {
+          lastCardStatusMessage = mapQueriedCardStatus(task);
+        }
         if (!data.success) {
-          setNotice("step3Notice", "状态查询失败", mapRechargeMessage(data.message, "failed"), "error");
-          setTimeout(pollStatus, 4000);
+          setNotice(
+            "step3Notice",
+            currentProvider === "czgpt" ? "暂未取得最新进度" : "状态查询失败",
+            currentProvider === "czgpt"
+              ? "本次查询暂时没有返回最终结果，系统会继续查询，请不要重复提交卡密。"
+              : mapRechargeMessage(data.message, "failed"),
+            currentProvider === "czgpt" ? "info" : "error"
+          );
+          schedulePoll(4000);
           return;
         }
-        if (task.status === "processing" || task.status === "created" || task.processing === true) {
+        if (
+          task.status === "queued" ||
+          task.status === "processing" ||
+          task.status === "created" ||
+          task.processing === true
+        ) {
           renderProgressBox(mapRechargeMessage(task.message, task.status), task);
-          setTimeout(pollStatus, 3000);
+          progressBox.style.display = "block";
+          resultBox.style.display = "none";
+          schedulePoll(3000);
           return;
         }
         if (task.status === "success") {
           renderResultBox("success", mapRechargeMessage(task.message, task.status));
+        } else if (task.status === "syncing") {
+          renderResultBox("syncing", mapRechargeMessage(task.message, task.status));
+          schedulePoll(10000);
+        } else if (task.status === "needs_review" || currentProvider === "czgpt") {
+          renderResultBox("review", mapRechargeMessage(task.message, "needs_review"));
+          schedulePoll(10000);
         } else {
           renderResultBox("fail", mapRechargeMessage(task.message, task.status));
         }
         progressBox.style.display = "none";
         resultBox.style.display = "block";
       } catch {
-        setTimeout(pollStatus, 4000);
+        schedulePoll(4000);
+      } finally {
+        pollInFlight = false;
       }
     }
 

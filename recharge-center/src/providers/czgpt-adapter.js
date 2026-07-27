@@ -75,7 +75,7 @@ function normalizeStart(raw) {
     provider: "czgpt",
     providerLabel: "l",
     taskId,
-    status: success ? "processing" : "failed",
+    status: success ? "queued" : "failed",
     message: body.message || errorMessage(raw, success ? "充值任务已创建。" : "充值提交失败。"),
     raw: body
   };
@@ -84,11 +84,14 @@ function normalizeStart(raw) {
 function normalizeStatus(raw) {
   const body = raw.data || {};
   const upstreamStatus = body.status || "unknown";
-  const status = upstreamStatus === "succeeded"
-    ? "success"
-    : upstreamStatus === "failed" || upstreamStatus === "timeout"
-      ? "failed"
-      : "processing";
+  const status =
+    upstreamStatus === "succeeded"
+      ? "success"
+      : upstreamStatus === "pending"
+        ? "queued"
+        : upstreamStatus === "working"
+          ? "processing"
+          : "needs_review";
 
   return {
     success: raw.ok,

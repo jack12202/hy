@@ -27,13 +27,20 @@ test("l channel adapter verifies, starts and polls a GPT Pro task", async t => {
       const code = await readBody(req);
       assert.equal(req.headers["content-type"], "text/plain");
       cardStatusCount += 1;
+      const status = code === "G20XFAILEDTASK"
+        ? "used"
+        : code === "G20XTIMEDOUT"
+          ? "unused"
+          : cardStatusCount === 1
+            ? "unused"
+            : "used";
       sendJson(res, 200, [{
         code,
-        status: cardStatusCount === 1 ? "unused" : "used",
+        status,
         is_distributed: true,
         type: "gpt_pro_20x",
-        bound_email: cardStatusCount === 1 ? null : "test@example.com",
-        used_at: cardStatusCount === 1 ? null : "2026-07-27T01:02:03Z"
+        bound_email: status === "used" ? "test@example.com" : null,
+        used_at: status === "used" ? "2026-07-27T01:02:03Z" : null
       }]);
       return;
     }
@@ -61,6 +68,35 @@ test("l channel adapter verifies, starts and polls a GPT Pro task", async t => {
         message: pollCount === 1 ? "处理中" : "充值成功",
         remaining_seconds: pollCount === 1 ? 47 : 0,
         queue_ahead: pollCount === 1 ? 3 : 0
+      });
+      return;
+    }
+
+    if (req.method === "GET" && req.url === "/api/v1/kami/task/task-pending") {
+      sendJson(res, 200, {
+        id: "task-pending",
+        status: "pending",
+        message: "等待处理",
+        remaining_seconds: 90,
+        queue_ahead: 5
+      });
+      return;
+    }
+
+    if (req.method === "GET" && req.url === "/api/v1/kami/task/task-failed") {
+      sendJson(res, 200, {
+        id: "task-failed",
+        status: "failed",
+        message: "任务返回失败"
+      });
+      return;
+    }
+
+    if (req.method === "GET" && req.url === "/api/v1/kami/task/task-timeout") {
+      sendJson(res, 200, {
+        id: "task-timeout",
+        status: "timeout",
+        message: "任务查询超时"
       });
       return;
     }
@@ -105,6 +141,10 @@ test("l channel adapter verifies, starts and polls a GPT Pro task", async t => {
   const succeeded = await czgptAdapter.queryTaskStatus({ taskId: "task-test" });
   assert.equal(succeeded.data.status, "success");
 
+  const pending = await czgptAdapter.queryTaskStatus({ taskId: "task-pending" });
+  assert.equal(pending.data.status, "queued");
+  assert.equal(pending.data.queueAhead, 5);
+
   pollCount = 0;
   const { rechargeService } = await import(`../src/recharge-service.js?test=${Date.now()}`);
   const serviceStatus = await rechargeService.queryTaskStatus({
@@ -118,4 +158,22 @@ test("l channel adapter verifies, starts and polls a GPT Pro task", async t => {
   const serviceCardStatus = await rechargeService.queryCardStatus("G20XTESTCODE1234", "czgpt");
   assert.equal(serviceCardStatus.ok, true);
   assert.equal(serviceCardStatus.data.cardStatus, "used");
+
+  const reconciledUsedCard = await rechargeService.queryTaskStatus({
+    taskId: "task-failed",
+    provider: "czgpt",
+    cardInfo: "G20XFAILEDTASK"
+  });
+  assert.equal(reconciledUsedCard.ok, true);
+  assert.equal(reconciledUsedCard.data.status, "syncing");
+  assert.equal(reconciledUsedCard.data.cardStatus, "used");
+
+  const reconciledUnusedCard = await rechargeService.queryTaskStatus({
+    taskId: "task-timeout",
+    provider: "czgpt",
+    cardInfo: "G20XTIMEDOUT"
+  });
+  assert.equal(reconciledUnusedCard.ok, true);
+  assert.equal(reconciledUnusedCard.data.status, "needs_review");
+  assert.equal(reconciledUnusedCard.data.cardStatus, "unused");
 });

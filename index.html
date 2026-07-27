@@ -831,8 +831,8 @@ window._hmt = _hmt;
     </div>
     <div class="recharge-warning" role="note" aria-label="避免重复充值提醒">
       <div id="dayRechargeWarning">
-        <strong>未到账先联系客服，别急着重复充值</strong>
-        <p>提交卡密后如未到账，请联系本平台客服核实。客服时间：每天 9:00—23:00。</p>
+        <strong>未到账先查卡密状态，别急着重复充值</strong>
+        <p>提交卡密后可能需要几分钟排队处理，页面暂未到账不代表充值失败。进入激活系统后可点击“卡密使用查询”：显示“处理中”请继续等待；显示“已使用”但会员未到账，请刷新账号或联系客服核查。</p>
         <p>原订单确认前，请勿购买或提交第二张卡密。否则可能两张卡密都被消耗，但会员时长没有叠加，账号有效期仍然只有一个月。</p>
       </div>
       <div id="nightRechargeWarning" hidden>
@@ -846,7 +846,7 @@ window._hmt = _hmt;
       <span>我已知晓：夜间未到账需要等人工核实，不购买或提交第二张卡密。</span>
     </label>
     <div class="modal-list">
-      <button class="modal-option rs-option" data-url="https://www.gptc.cc/activate/?source=gptc" id="rechargeEnterBtn" type="button"><span><strong id="rechargeEnterTitle">我已了解，进入激活系统</strong><br><span class="muted" id="rechargeEnterDesc">未确认原订单前，不购买或提交第二张卡密</span></span><span class="tag">进入</span></button>
+      <button class="modal-option rs-option" data-url="https://www.gptc.cc/activate/?source=gptc" id="rechargeEnterBtn" type="button"><span><strong id="rechargeEnterTitle">我已了解，进入激活系统</strong><br><span class="muted" id="rechargeEnterDesc">先查卡密状态，未确认结果前不提交第二张卡密</span></span><span class="tag">进入</span></button>
     </div>
     <button class="btn btn-outline" id="cancelRecharge" type="button">暂不进入</button>
   </div>
@@ -974,8 +974,8 @@ window._hmt = _hmt;
     const enterDesc = $('#rechargeEnterDesc');
     if(enterDesc){
       enterDesc.textContent = nightMode
-        ? '夜间未到账先等人工核实，不购买或提交第二张卡密'
-        : '未确认原订单前，不购买或提交第二张卡密';
+        ? '夜间先查卡密状态，未确认结果前不提交第二张卡密'
+        : '先查卡密状态，未确认结果前不提交第二张卡密';
     }
     const cancelBtn = $('#cancelRecharge');
     if(cancelBtn) cancelBtn.textContent = nightMode ? '暂不操作，等客服上班' : '暂不进入';

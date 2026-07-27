@@ -96,6 +96,65 @@ function logPayload(value) {
   return JSON.stringify(value);
 }
 
+async function reconcileCzgptStatus(adapter, taskData, cardInfo) {
+  if (
+    taskData?.status !== "needs_review" ||
+    !requiredString(cardInfo) ||
+    typeof adapter.queryCardStatus !== "function"
+  ) {
+    return taskData;
+  }
+
+  const cardResult = await adapter.queryCardStatus({ cardInfo: cardInfo.trim() });
+  const cardData = cardResult.data || {};
+  const cardStatus = cardData.cardStatus || "unknown";
+  const base = {
+    ...taskData,
+    cardStatus,
+    cardStatusVerified: cardResult.ok,
+    boundEmailMasked: cardData.boundEmailMasked || "",
+    usedAt: cardData.usedAt || ""
+  };
+
+  if (!cardResult.ok) {
+    return {
+      ...base,
+      status: "needs_review",
+      message: "暂未取得最终充值结果，系统会继续查询，请不要重复提交卡密。"
+    };
+  }
+
+  if (cardStatus === "used") {
+    return {
+      ...base,
+      status: "syncing",
+      message: "卡密已使用，说明本次充值已被系统接收；如会员暂未显示，请等待账号状态同步。"
+    };
+  }
+
+  if (cardStatus === "bound" || cardStatus === "processing") {
+    return {
+      ...base,
+      status: "processing",
+      message: "卡密已绑定，系统仍在处理中，请继续等待。"
+    };
+  }
+
+  if (cardStatus === "unused") {
+    return {
+      ...base,
+      status: "needs_review",
+      message: "任务暂未完成，卡密当前仍显示未使用。请先联系客服核查原任务，不要提交第二张卡密。"
+    };
+  }
+
+  return {
+    ...base,
+    status: "needs_review",
+    message: "充值结果暂时无法确认，系统会继续查询，请不要重复提交或更换卡密。"
+  };
+}
+
 export const rechargeService = {
   getProviderSettings() {
     const settings = store.getSettings();
@@ -267,7 +326,7 @@ export const rechargeService = {
     const upstream = await adapter.startRecharge(upstreamPayload);
     const upstreamTaskId = upstream.data?.taskId || "";
     const message = upstream.data?.message || "充值已提交，正在处理。";
-    const status = upstream.ok ? "processing" : "failed";
+    const status = upstream.ok ? upstream.data?.status || "processing" : "failed";
 
     store.updateOrder(order.id, {
       upstreamTaskId,
@@ -346,8 +405,11 @@ export const rechargeService = {
       cardInfo: input.cardInfo || ""
     });
 
-    const nextStatus = upstream.data?.status || "processing";
-    const message = upstream.data?.message || "";
+    const taskData = selectedProvider === "czgpt"
+      ? await reconcileCzgptStatus(adapter, upstream.data || {}, input.cardInfo || "")
+      : upstream.data || {};
+    const nextStatus = taskData.status || "processing";
+    const message = taskData.message || "";
 
     if (order) {
       store.updateOrder(order.id, {
@@ -365,25 +427,32 @@ export const rechargeService = {
         responseSummary: logPayload({
           ok: upstream.ok,
           status: upstream.status,
-          upstreamStatus: upstream.data?.upstreamStatus || nextStatus,
-          queueAhead: upstream.data?.queueAhead ?? null,
-          remainingSeconds: upstream.data?.remainingSeconds ?? null,
+          upstreamStatus: taskData.upstreamStatus || nextStatus,
+          cardStatus: taskData.cardStatus || "",
+          queueAhead: taskData.queueAhead ?? null,
+          remainingSeconds: taskData.remainingSeconds ?? null,
           message
         })
       });
     }
 
+    const statusResolved = upstream.ok || taskData.cardStatusVerified === true;
+
     return {
-      ok: upstream.ok,
-      status: upstream.ok ? 200 : 502,
+      ok: statusResolved,
+      status: statusResolved ? 200 : 502,
       data: {
         orderId: order?.id || "",
         taskId,
         status: nextStatus,
         message,
-        upstreamStatus: upstream.data?.upstreamStatus || "",
-        queueAhead: upstream.data?.queueAhead ?? null,
-        remainingSeconds: upstream.data?.remainingSeconds ?? null,
+        upstreamStatus: taskData.upstreamStatus || "",
+        cardStatus: taskData.cardStatus || "",
+        cardStatusVerified: taskData.cardStatusVerified === true,
+        boundEmailMasked: taskData.boundEmailMasked || "",
+        usedAt: taskData.usedAt || "",
+        queueAhead: taskData.queueAhead ?? null,
+        remainingSeconds: taskData.remainingSeconds ?? null,
         ...normalizedProviderData(selectedProvider)
       }
     };

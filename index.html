@@ -476,6 +476,22 @@ h1{
   margin-top:7px;
   font-weight:700;
 }
+.recharge-status-steps{
+  display:grid;
+  gap:7px;
+  margin:10px 0;
+}
+.recharge-status-steps span{
+  display:flex;
+  gap:8px;
+  align-items:baseline;
+  padding:8px 10px;
+  border-radius:9px;
+  background:rgba(255,255,255,.62);
+  line-height:1.45;
+}
+.recharge-status-steps b{flex:0 0 auto}
+.recharge-warning .recharge-repeat-note{line-height:1.55}
 .modal.night-mode .recharge-warning{
   border-color:#fca5a5;
   background:#fef2f2;
@@ -831,14 +847,20 @@ window._hmt = _hmt;
     </div>
     <div class="recharge-warning" role="note" aria-label="避免重复充值提醒">
       <div id="dayRechargeWarning">
-        <strong>未到账先查卡密状态，别急着重复充值</strong>
-        <p>提交卡密后可能需要几分钟排队处理，页面暂未到账不代表充值失败。进入激活系统后可点击“卡密使用查询”：显示“处理中”请继续等待；显示“已使用”但会员未到账，请刷新账号或联系客服核查。</p>
-        <p>原订单确认前，请勿购买或提交第二张卡密。否则可能两张卡密都被消耗，但会员时长没有叠加，账号有效期仍然只有一个月。</p>
+        <strong>未到账，先查卡密状态</strong>
+        <div class="recharge-status-steps">
+          <span><b>处理中</b>继续等待，不代表失败</span>
+          <span><b>已使用但未到账</b>刷新账号或联系客服</span>
+        </div>
+        <p class="recharge-repeat-note">结果确认前，不要提交第二张卡密。重复充值可能消耗两张卡密，但有效期不会叠加，仍只有一个月。</p>
       </div>
       <div id="nightRechargeWarning" hidden>
-        <strong>夜间到账可能延迟，请先不要重复充值</strong>
-        <p>当前为非客服工作时间（23:00—次日 9:00）。夜间订单可能需要排队处理，不一定立即到账。页面暂未显示成功，不代表充值失败，原卡密仍可能稍后到账。</p>
-        <p>原订单确认前，请暂停购买或提交新的卡密——无论是在本平台还是其他平台购买。否则可能两张卡密都被消耗，但会员时长没有叠加，账号有效期仍然只有一个月；已消耗卡密无法撤销或退款。</p>
+        <strong>夜间可能延迟到账</strong>
+        <div class="recharge-status-steps">
+          <span><b>正在处理</b>夜间可能排队，请继续等待</span>
+          <span><b>客服时间</b>9:00—23:00，未到账请上班后核查</span>
+        </div>
+        <p class="recharge-repeat-note">结果确认前，不要在任何平台提交第二张卡密。重复充值可能消耗两张卡密，但有效期不叠加；已消耗卡密无法退款。</p>
       </div>
     </div>
     <label class="night-ack" id="nightRechargeAckRow" hidden>

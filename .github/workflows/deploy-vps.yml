@@ -76,11 +76,15 @@ jobs:
       - name: Verify activate page
         run: |
           curl -fsSL https://www.gptc.cc/activate/ > /tmp/gptccc-activate.html
-          grep -q '<link rel="canonical" href="https://www.gptc.cc/activate/">' /tmp/gptccc-activate.html
+          grep -q '<meta name="robots" content="noindex, nofollow, noarchive, nosnippet">' /tmp/gptccc-activate.html
+          grep -q '<meta name="baiduspider" content="nofollow, noarchive">' /tmp/gptccc-activate.html
+          ! grep -q '<link rel="canonical"' /tmp/gptccc-activate.html
           grep -q '<title>嘉哥AI Plus充值系统｜GPTC.cc</title>' /tmp/gptccc-activate.html
           grep -q '/api/recharge/verify-card' /tmp/gptccc-activate.html
           ! grep -q 'http-equiv="refresh"' /tmp/gptccc-activate.html
           ! grep -q '廖' /tmp/gptccc-activate.html
+          curl -fsSL https://www.gptc.cc/robots.txt > /tmp/gptccc-robots.txt
+          grep -q '^Disallow: /activate/$' /tmp/gptccc-robots.txt
 
       - name: Verify recharge backend routes
         run: |

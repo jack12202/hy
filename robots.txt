@@ -1,3 +1,6 @@
+User-agent: Baiduspider
+Disallow: /activate/
+
 User-agent: *
 Allow: /
 

@@ -9,11 +9,13 @@ import {
   sangeExternalAdapter
 } from "./redirect-adapters.js";
 import { sangeAdapter } from "./sange-adapter.js";
+import { xiaoyuAdapter } from "./xiaoyu-adapter.js";
 
 export const providerAdapters = {
   sange: sangeAdapter,
   ayan: ayanAdapter,
   czgpt: czgptAdapter,
+  xiaoyu: xiaoyuAdapter,
   sange_external: sangeExternalAdapter,
   ayan_external: ayanExternalAdapter,
   czgpt_external: czgptExternalAdapter,

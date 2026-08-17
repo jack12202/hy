@@ -128,6 +128,7 @@ function serveProviderAdmin(res) {
         <button type="button" data-provider="sange">三哥</button>
         <button type="button" data-provider="ayan">阿妍</button>
         <button type="button" data-provider="czgpt">廖</button>
+        <button type="button" data-provider="xiaoyu">小雨</button>
       </div>
     </div>
     <div class="provider-group">

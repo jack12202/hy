@@ -341,7 +341,7 @@ export const rechargeService = {
       responseSummary: logPayload({
         ok: upstream.ok,
         status: upstream.status,
-        upstreamTaskId,
+        upstreamTaskId: selectedProvider === "xiaoyu" ? maskCard(upstreamTaskId) : upstreamTaskId,
         message
       })
     });
@@ -421,7 +421,7 @@ export const rechargeService = {
         orderId: order.id,
         step: `${selectedProvider}.status`,
         requestSummary: logPayload({
-          taskId,
+          taskId: selectedProvider === "xiaoyu" ? maskCard(taskId) : taskId,
           productId: order.productId
         }),
         responseSummary: logPayload({

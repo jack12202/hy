@@ -16,6 +16,8 @@ export const config = {
   upstreamAuthScheme: process.env.UPSTREAM_AUTH_SCHEME || "Bearer",
   ayanBaseUrl: process.env.AYAN_BASE_URL || "https://api.987ai.vip",
   resellerBaseUrl: process.env.RESELLER_BASE_URL || "https://666ai.vip",
+  xiaoyuBaseUrl: process.env.XIAOYU_BASE_URL || "https://autoserve.de10.online",
+  xiaoyuApiKey: process.env.XIAOYU_API_KEY || "",
   adminToken: process.env.ADMIN_TOKEN || "",
   dataFile: process.env.DATA_FILE || path.join(rootDir, "data", "orders.json"),
   logFile: process.env.LOG_FILE || path.join(rootDir, "logs", "server.log"),

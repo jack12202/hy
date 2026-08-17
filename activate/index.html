@@ -159,6 +159,7 @@
     }
     .provider-cue::before { content: "Y"; }
     body.provider-ayan .provider-cue::before { content: "Y"; }
+    body.provider-xiaoyu .provider-cue::before { content: "X"; }
     body.provider-sange .provider-cue::before { content: "S"; }
     body.provider-czgpt .provider-cue::before { content: "l"; }
     body.provider-sange .provider-cue {
@@ -1027,6 +1028,7 @@ window._hmt = _hmt;
     function applyProviderCue(provider) {
       const normalized = normalizeProvider(provider);
       document.body.classList.toggle("provider-ayan", normalized === "ayan");
+      document.body.classList.toggle("provider-xiaoyu", normalized === "xiaoyu");
       document.body.classList.toggle("provider-sange", normalized === "sange");
       document.body.classList.toggle("provider-czgpt", normalized === "czgpt");
     }

@@ -22,6 +22,7 @@ function sendJson(res, status, value) {
 test("Xiaoyu adapter preserves card-key case and uses the documented third-party flow", async t => {
   const cardKey = "MixedCase-card-Key_123";
   const failedCardKey = "RetryCase-card-Key_456";
+  const publicCardKey = "PublicCase-card-Key_789";
   let statusCount = 0;
   const upstream = http.createServer(async (req, res) => {
     if (req.method === "POST" && req.url === "/api/v1/card-keys/check-usage") {
@@ -54,6 +55,40 @@ test("Xiaoyu adapter preserves card-key case and uses the documented third-party
           status: "processing",
           plan_type: "plus",
           message: "订单已进入队列"
+        }
+      });
+      return;
+    }
+
+    if (req.method === "POST" && req.url === "/api/v1/orders") {
+      assert.equal(req.headers["x-api-key"], undefined);
+      const payload = JSON.parse(await readBody(req));
+      assert.equal(payload.cardKey, publicCardKey);
+      assert.equal(payload.token.user.email, "public@example.com");
+      sendJson(res, 201, {
+        code: 0,
+        message: "success",
+        data: {
+          order_no: "public-order-test",
+          card_key: publicCardKey,
+          status: "processing",
+          plan_type: "plus"
+        }
+      });
+      return;
+    }
+
+    if (req.method === "GET" && req.url === `/api/v1/orders/status/${publicCardKey}`) {
+      assert.equal(req.headers["x-api-key"], undefined);
+      sendJson(res, 200, {
+        code: 0,
+        message: "success",
+        data: {
+          order_no: "public-order-test",
+          card_key: publicCardKey,
+          status: "success",
+          retry_attempt: 1,
+          plan_type: "plus"
         }
       });
       return;
@@ -142,4 +177,18 @@ test("Xiaoyu adapter preserves card-key case and uses the documented third-party
   assert.equal(first.data.status, "needs_review");
   const confirmed = await xiaoyuAdapter.queryTaskStatus({ taskId: failedCardKey });
   assert.equal(confirmed.data.status, "failed");
+
+  process.env.XIAOYU_API_KEY = "";
+  const publicStarted = await xiaoyuAdapter.startRecharge({
+    cardInfo: publicCardKey,
+    fullAuthData: {
+      user: { email: "public@example.com" },
+      account: { id: "public_account" },
+      accessToken: "public_token_test"
+    }
+  });
+  assert.equal(publicStarted.ok, true);
+  assert.equal(publicStarted.data.taskId, publicCardKey);
+  const publicSucceeded = await xiaoyuAdapter.queryTaskStatus({ taskId: publicCardKey });
+  assert.equal(publicSucceeded.data.status, "success");
 });

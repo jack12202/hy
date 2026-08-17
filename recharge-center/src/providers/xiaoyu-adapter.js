@@ -38,24 +38,14 @@ function errorMessage(raw, fallback) {
   return parsed.message || fallback;
 }
 
-function apiHeaders() {
-  return {
-    "Content-Type": "application/json",
-    "X-API-Key": config.xiaoyuApiKey
-  };
+function currentApiKey() {
+  return process.env.XIAOYU_API_KEY ?? config.xiaoyuApiKey;
 }
 
-function missingApiKey() {
+function apiHeaders(apiKey) {
   return {
-    ok: false,
-    status: 503,
-    data: {
-      success: false,
-      provider: "xiaoyu",
-      providerLabel: "小雨",
-      status: "failed",
-      message: "小雨通道尚未配置 API Key，请联系管理员。"
-    }
+    "Content-Type": "application/json",
+    "X-API-Key": apiKey
   };
 }
 
@@ -182,19 +172,28 @@ export const xiaoyuAdapter = {
   },
 
   async startRecharge({ cardInfo, fullAuthData }) {
-    if (!requiredString(config.xiaoyuApiKey)) return missingApiKey();
-
     const cardCode = normalizeCardKey(cardInfo);
     const token = typeof fullAuthData === "string" ? JSON.parse(fullAuthData) : fullAuthData;
-    const raw = await requestJson(config.xiaoyuBaseUrl, "/api/v1/third-party/orders/direct", {
-      method: "POST",
-      headers: apiHeaders(),
-      payload: {
-        orderType: "card_key",
-        cardKey: cardCode,
-        token
+    const apiKey = currentApiKey();
+    const useThirdPartyApi = requiredString(apiKey);
+    const raw = await requestJson(
+      config.xiaoyuBaseUrl,
+      useThirdPartyApi ? "/api/v1/third-party/orders/direct" : "/api/v1/orders",
+      {
+        method: "POST",
+        headers: useThirdPartyApi ? apiHeaders(apiKey) : {},
+        payload: useThirdPartyApi
+          ? {
+              orderType: "card_key",
+              cardKey: cardCode,
+              token
+            }
+          : {
+              cardKey: cardCode,
+              token
+            }
       }
-    });
+    );
     const data = normalizeStart(raw);
     return {
       ok: data.success,
@@ -204,14 +203,19 @@ export const xiaoyuAdapter = {
   },
 
   async queryTaskStatus({ taskId, cardInfo }) {
-    if (!requiredString(config.xiaoyuApiKey)) return missingApiKey();
-
     const cardKey = normalizeCardKey(cardInfo || taskId);
-    const raw = await requestJson(config.xiaoyuBaseUrl, "/api/v1/third-party/orders/status", {
-      method: "POST",
-      headers: apiHeaders(),
-      payload: { cardKey }
-    });
+    const apiKey = currentApiKey();
+    const useThirdPartyApi = requiredString(apiKey);
+    const raw = useThirdPartyApi
+      ? await requestJson(config.xiaoyuBaseUrl, "/api/v1/third-party/orders/status", {
+          method: "POST",
+          headers: apiHeaders(apiKey),
+          payload: { cardKey }
+        })
+      : await requestJson(
+          config.xiaoyuBaseUrl,
+          `/api/v1/orders/status/${encodeURIComponent(cardKey)}`
+        );
     const data = normalizeStatus(raw, cardKey);
     return {
       ok: data.success,

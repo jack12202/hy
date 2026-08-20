@@ -1,7 +1,9 @@
 User-agent: Baiduspider
 Disallow: /activate/
+Disallow: /self-recharge
 
 User-agent: *
 Allow: /
+Disallow: /self-recharge
 
 Sitemap: https://www.gptc.cc/sitemap.xml

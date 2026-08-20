@@ -6,7 +6,8 @@ import {
   ayanExternalAdapter,
   czgptExternalAdapter,
   dnsconAdapter,
-  sangeExternalAdapter
+  sangeExternalAdapter,
+  xiaoyuProxyAdapter
 } from "./redirect-adapters.js";
 import { sangeAdapter } from "./sange-adapter.js";
 import { xiaoyuAdapter } from "./xiaoyu-adapter.js";
@@ -16,6 +17,7 @@ export const providerAdapters = {
   ayan: ayanAdapter,
   czgpt: czgptAdapter,
   xiaoyu: xiaoyuAdapter,
+  xiaoyu_proxy: xiaoyuProxyAdapter,
   sange_external: sangeExternalAdapter,
   ayan_external: ayanExternalAdapter,
   czgpt_external: czgptExternalAdapter,
@@ -32,6 +34,6 @@ export function listProviders() {
     key: adapter.key,
     label: adapter.label,
     mode: adapter.mode || "api",
-    location: adapter.mode === "redirect" ? "external" : "internal"
+    location: adapter.mode === "redirect" ? "external" : adapter.mode === "proxy" ? "proxy" : "internal"
   }));
 }

@@ -84,11 +84,12 @@ function parseRechargeInput(input) {
 
 function normalizedProviderData(provider) {
   const adapter = getProviderAdapter(provider);
+  const navigatesAway = adapter.mode === "redirect" || adapter.mode === "proxy";
   return {
     provider: adapter.key,
     providerLabel: adapter.label,
     providerMode: adapter.mode || "api",
-    redirectUrl: adapter.mode === "redirect" ? adapter.redirectUrl : ""
+    redirectUrl: navigatesAway ? adapter.redirectUrl : ""
   };
 }
 
@@ -160,12 +161,13 @@ export const rechargeService = {
     const settings = store.getSettings();
     const provider = normalizeProvider(settings.defaultProvider, defaultProvider());
     const adapter = getProviderAdapter(provider);
+    const navigatesAway = adapter.mode === "redirect" || adapter.mode === "proxy";
 
     return {
       defaultProvider: provider,
       defaultProviderLabel: adapter.label,
       defaultProviderMode: adapter.mode || "api",
-      redirectUrl: adapter.mode === "redirect" ? adapter.redirectUrl : "",
+      redirectUrl: navigatesAway ? adapter.redirectUrl : "",
       providerUpdatedAt: settings.providerUpdatedAt || "",
       providerUpdatedBy: settings.providerUpdatedBy || "",
       providers: listProviders()

@@ -370,6 +370,98 @@ location ^~ /admin/provider/ {
     proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     proxy_set_header X-Forwarded-Proto $scheme;
 }
+
+# Xiaoyu's new SPA is mounted below /self-recharge. Its build uses root-relative
+# /assets URLs and a cross-origin API origin, so both are rewritten to isolated
+# same-origin proxy paths. Only the three public recharge endpoints are exposed.
+location = /self-recharge {
+    proxy_pass https://auto17.de10.online/self-recharge;
+    proxy_ssl_server_name on;
+    proxy_ssl_name auto17.de10.online;
+    proxy_set_header Host auto17.de10.online;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Accept-Encoding "";
+    add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+    sub_filter_once off;
+    sub_filter '/assets/' '/xiaoyu-assets/';
+}
+
+location ^~ /self-recharge/ {
+    proxy_pass https://auto17.de10.online;
+    proxy_ssl_server_name on;
+    proxy_ssl_name auto17.de10.online;
+    proxy_set_header Host auto17.de10.online;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Accept-Encoding "";
+    add_header X-Robots-Tag "noindex, nofollow, noarchive" always;
+    sub_filter_once off;
+    sub_filter '/assets/' '/xiaoyu-assets/';
+}
+
+location ^~ /xiaoyu-assets/ {
+    proxy_pass https://auto17.de10.online/assets/;
+    proxy_ssl_server_name on;
+    proxy_ssl_name auto17.de10.online;
+    proxy_set_header Host auto17.de10.online;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_set_header Accept-Encoding "";
+    sub_filter_once off;
+    sub_filter_types application/javascript text/javascript text/css;
+    sub_filter '/assets/' '/xiaoyu-assets/';
+    sub_filter 'https://autoserve.de10.online' '/xiaoyu-api';
+}
+
+location = /xiaoyu-api/api/v1/card-keys/check-usage {
+    limit_except POST { deny all; }
+    proxy_pass https://autoserve.de10.online/api/v1/card-keys/check-usage;
+    proxy_ssl_server_name on;
+    proxy_ssl_name autoserve.de10.online;
+    proxy_set_header Host autoserve.de10.online;
+    proxy_set_header Origin https://auto17.de10.online;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_hide_header Access-Control-Allow-Origin;
+    proxy_hide_header Access-Control-Allow-Credentials;
+}
+
+location = /xiaoyu-api/api/v1/orders {
+    limit_except POST { deny all; }
+    proxy_pass https://autoserve.de10.online/api/v1/orders;
+    proxy_ssl_server_name on;
+    proxy_ssl_name autoserve.de10.online;
+    proxy_set_header Host autoserve.de10.online;
+    proxy_set_header Origin https://auto17.de10.online;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_hide_header Access-Control-Allow-Origin;
+    proxy_hide_header Access-Control-Allow-Credentials;
+}
+
+location ^~ /xiaoyu-api/api/v1/orders/status/ {
+    limit_except GET { deny all; }
+    proxy_pass https://autoserve.de10.online/api/v1/orders/status/;
+    proxy_ssl_server_name on;
+    proxy_ssl_name autoserve.de10.online;
+    proxy_set_header Host autoserve.de10.online;
+    proxy_set_header Origin https://auto17.de10.online;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+    proxy_hide_header Access-Control-Allow-Origin;
+    proxy_hide_header Access-Control-Allow-Credentials;
+}
+
+location ^~ /xiaoyu-api/ {
+    return 404;
+}
 # END GPTC RECHARGE CENTER
 EOF
 cp "$BLOCK_FILE" "$PROXY_FILE"

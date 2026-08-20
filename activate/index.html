@@ -1019,8 +1019,7 @@ window._hmt = _hmt;
     }
 
     function openRedirectProvider(settings) {
-      const navigationMode = settings?.defaultProviderMode === "redirect" || settings?.defaultProviderMode === "proxy";
-      if (providerLocked || !navigationMode || !settings?.redirectUrl) return false;
+      if (providerLocked || settings?.defaultProviderMode !== "redirect" || !settings?.redirectUrl) return false;
       const target = new URL(settings.redirectUrl, window.location.href);
       window.location.replace(target.toString());
       return true;

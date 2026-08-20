@@ -116,7 +116,7 @@ function serveProviderAdmin(res) {
 <body>
   <main>
     <h1>GPTC 源头切换</h1>
-    <p>先选择充值方式，再点击对应源头。站内使用 GPTC 页面，反代和站外方式会自动打开对应充值页。</p>
+    <p>先选择站内或站外充值，再点击对应源头。站内在 GPTC 完成，站外会直接打开对应充值页。</p>
     <label id="tokenField">
       管理密码
       <input id="adminToken" type="password" autocomplete="current-password" placeholder="请输入 ADMIN_TOKEN">
@@ -129,13 +129,6 @@ function serveProviderAdmin(res) {
         <button type="button" data-provider="ayan">阿妍</button>
         <button type="button" data-provider="czgpt">廖</button>
         <button type="button" data-provider="xiaoyu">小雨</button>
-      </div>
-    </div>
-    <div class="provider-group">
-      <h2 class="group-title">反代充值</h2>
-      <p class="group-help">用户仍在 GPTC 域名下，页面和充值接口由 GPTC 安全转发。</p>
-      <div class="choices">
-        <button type="button" data-provider="xiaoyu_proxy">小雨</button>
       </div>
     </div>
     <div class="provider-group">
@@ -186,11 +179,7 @@ function serveProviderAdmin(res) {
     }
 
     function providerLocationLabel(data) {
-      return data.defaultProviderMode === "redirect"
-        ? "站外充值"
-        : data.defaultProviderMode === "proxy"
-          ? "反代充值"
-          : "站内充值";
+      return data.defaultProviderMode === "redirect" ? "站外充值" : "站内充值";
     }
 
     async function api(path, options = {}) {
@@ -250,11 +239,7 @@ function serveProviderAdmin(res) {
 function serveProviderSwitchResult(res, result) {
   const success = result.ok;
   const title = success ? "源头已切换" : "切换失败";
-  const locationLabel = result.data?.defaultProviderMode === "redirect"
-    ? "站外充值"
-    : result.data?.defaultProviderMode === "proxy"
-      ? "反代充值"
-      : "站内充值";
+  const locationLabel = result.data?.defaultProviderMode === "redirect" ? "站外充值" : "站内充值";
   const providerLabel = adminProviderLabel(result.data?.defaultProvider, result.data?.defaultProviderLabel);
   const message = success
     ? `当前默认方式：${locationLabel} · ${providerLabel}`

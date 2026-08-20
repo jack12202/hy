@@ -34,20 +34,3 @@ test("external providers are available as redirect routes", async () => {
     "9977ai": "https://9977ai.vip/"
   });
 });
-
-test("Xiaoyu is available through the GPTC reverse proxy route", async () => {
-  const providers = listProviders();
-  assert.deepEqual(
-    providers.filter(provider => provider.mode === "proxy"),
-    [
-      { key: "xiaoyu_proxy", label: "小雨", mode: "proxy", location: "proxy" }
-    ]
-  );
-
-  const xiaoyuProxy = getProviderAdapter("xiaoyu_proxy");
-  const result = await xiaoyuProxy.verifyCard({ cardInfo: "TEST" });
-  assert.equal(result.ok, false);
-  assert.equal(result.status, 409);
-  assert.equal(result.data.providerMode, "proxy");
-  assert.equal(result.data.redirectUrl, "/self-recharge");
-});

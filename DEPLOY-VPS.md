@@ -47,12 +47,6 @@
   - 三哥：`sange`
   - 阿妍：`ayan`
   - 廖（用户端显示 `l`）：`czgpt`
-  - 小雨 API：`xiaoyu`
-- 反代充值
-  - 小雨新站：`xiaoyu_proxy`
-  - GPTC 页面路径：`/self-recharge`
-  - 页面上游：`https://auto17.de10.online/self-recharge`
-  - API 上游仍为：`https://autoserve.de10.online`
 - 站外充值
   - 三哥：`sange_external`
   - 阿妍：`ayan_external`
@@ -66,7 +60,7 @@
 
 - `DEFAULT_PROVIDER`
   - 默认值：`czgpt`
-  - 可选值：`sange` / `ayan` / `czgpt` / `xiaoyu` / `xiaoyu_proxy` / `sange_external` / `ayan_external` / `czgpt_external` / `dnscon` / `9977ai`
+  - 可选值：`sange` / `ayan` / `czgpt` / `sange_external` / `ayan_external` / `czgpt_external` / `dnscon` / `9977ai`
 - `ADMIN_TOKEN`
   - 手机后台切换源头时输入的管理密码
 - `AYAN_BASE_URL`
@@ -93,8 +87,6 @@
 - 切到三哥：`https://gptc.cc/admin/provider/switch?provider=sange&token=你的ADMIN_TOKEN`
 - 切到阿妍：`https://gptc.cc/admin/provider/switch?provider=ayan&token=你的ADMIN_TOKEN`
 - 切到廖（站内）：`https://gptc.cc/admin/provider/switch?provider=czgpt&token=你的ADMIN_TOKEN`
-- 切到小雨（站内 API）：`https://gptc.cc/admin/provider/switch?provider=xiaoyu&token=你的ADMIN_TOKEN`
-- 切到小雨（反代新站）：`https://gptc.cc/admin/provider/switch?provider=xiaoyu_proxy&token=你的ADMIN_TOKEN`
 - 切到站外三哥：`https://gptc.cc/admin/provider/switch?provider=sange_external&token=你的ADMIN_TOKEN`
 - 切到站外阿妍：`https://gptc.cc/admin/provider/switch?provider=ayan_external&token=你的ADMIN_TOKEN`
 - 切到廖（站外）：`https://gptc.cc/admin/provider/switch?provider=czgpt_external&token=你的ADMIN_TOKEN`
@@ -104,5 +96,3 @@
 这些链接不需要账号密码，但 `ADMIN_TOKEN` 必须足够长、不要发给别人。
 
 上线时要确认 Nginx / OpenResty 已把 `/api/recharge/*` 和 `/admin/provider` 转发到 `recharge-center` 后端服务。
-
-小雨反代还会增加 `/self-recharge`、`/xiaoyu-assets/` 和 `/xiaoyu-api/`。`/xiaoyu-api/` 不是整个上游 API 的透明代理，只允许卡密验证、创建订单和查询订单状态这三类公开充值接口，避免把小雨后台接口暴露到 GPTC 域名。

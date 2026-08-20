@@ -91,9 +91,7 @@ jobs:
           curl -fsSL https://www.gptc.cc/admin/provider > /tmp/gptccc-provider-admin.html
           grep -q '<title>源头切换后台｜GPTC.cc</title>' /tmp/gptccc-provider-admin.html
           grep -q '站内充值' /tmp/gptccc-provider-admin.html
-          grep -q '反代充值' /tmp/gptccc-provider-admin.html
           grep -q '站外充值' /tmp/gptccc-provider-admin.html
-          grep -q 'data-provider="xiaoyu_proxy"' /tmp/gptccc-provider-admin.html
           grep -q 'data-provider="sange_external"' /tmp/gptccc-provider-admin.html
           grep -q 'data-provider="ayan_external"' /tmp/gptccc-provider-admin.html
           grep -q 'data-provider="czgpt_external"' /tmp/gptccc-provider-admin.html
@@ -108,27 +106,5 @@ jobs:
           grep -q '"key":"czgpt_external"' /tmp/gptccc-provider.json
           grep -q '"key":"czgpt","label":"l"' /tmp/gptccc-provider.json
           grep -q '"key":"czgpt_external","label":"l"' /tmp/gptccc-provider.json
-          grep -q '"key":"xiaoyu_proxy","label":"小雨","mode":"proxy","location":"proxy"' /tmp/gptccc-provider.json
           grep -q '"key":"dnscon"' /tmp/gptccc-provider.json
           grep -q '"key":"9977ai"' /tmp/gptccc-provider.json
-
-      - name: Verify Xiaoyu reverse proxy
-        run: |
-          curl -fsSL https://www.gptc.cc/self-recharge > /tmp/gptccc-xiaoyu.html
-          curl -fsSI https://www.gptc.cc/self-recharge | grep -Eiq '^x-robots-tag: noindex, nofollow, noarchive'
-          grep -q '<div id="app"></div>' /tmp/gptccc-xiaoyu.html
-          grep -q '/xiaoyu-assets/index-' /tmp/gptccc-xiaoyu.html
-          ! grep -q 'src="/assets/index-' /tmp/gptccc-xiaoyu.html
-          XIAOYU_INDEX_PATH="$(sed -n 's/.*src="\([^"]*\/index-[^"]*\.js\)".*/\1/p' /tmp/gptccc-xiaoyu.html | head -n1)"
-          test -n "$XIAOYU_INDEX_PATH"
-          curl -fsSL "https://www.gptc.cc${XIAOYU_INDEX_PATH}" > /tmp/gptccc-xiaoyu-index.js
-          XIAOYU_HTTP_ASSET="$(grep -o 'assets/http-[A-Za-z0-9_-]*\.js' /tmp/gptccc-xiaoyu-index.js | head -n1 | sed 's#^assets/#/xiaoyu-assets/#')"
-          test -n "$XIAOYU_HTTP_ASSET"
-          curl -fsSL "https://www.gptc.cc${XIAOYU_HTTP_ASSET}" > /tmp/gptccc-xiaoyu-http.js
-          grep -q '/xiaoyu-api' /tmp/gptccc-xiaoyu-http.js
-          ! grep -q 'https://autoserve.de10.online' /tmp/gptccc-xiaoyu-http.js
-          curl -fsSL -X POST https://www.gptc.cc/xiaoyu-api/api/v1/card-keys/check-usage \
-            -H 'Content-Type: application/json' \
-            --data '{"key":"GPTC_REVERSE_PROXY_HEALTHCHECK"}' > /tmp/gptccc-xiaoyu-api.json
-          grep -q '"code":0' /tmp/gptccc-xiaoyu-api.json
-          curl -fsSL https://www.gptc.cc/robots.txt | grep -q '^Disallow: /self-recharge$'

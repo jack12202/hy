@@ -23,15 +23,18 @@ test("Xiaoyu adapter preserves card-key case and uses the documented third-party
   const cardKey = "MixedCase-card-Key_123";
   const failedCardKey = "RetryCase-card-Key_456";
   const publicCardKey = "PublicCase-card-Key_789";
+  const immediateCardKey = "ImmediateSuccess-card-Key_321";
   let statusCount = 0;
+  let immediateStatusQueries = 0;
   const upstream = http.createServer(async (req, res) => {
     if (req.method === "POST" && req.url === "/api/v1/card-keys/check-usage") {
       const payload = JSON.parse(await readBody(req));
-      assert.equal(payload.key, cardKey);
+      assert.ok([cardKey, failedCardKey, immediateCardKey].includes(payload.key));
+      const used = payload.key === immediateCardKey;
       sendJson(res, 200, {
         exists: true,
-        status: "unused",
-        is_used: false,
+        status: used ? "used" : "unused",
+        is_used: used,
         type: "plus",
         plan_type: "plus"
       });
@@ -63,8 +66,18 @@ test("Xiaoyu adapter preserves card-key case and uses the documented third-party
     if (req.method === "POST" && req.url === "/api/v1/orders") {
       assert.equal(req.headers["x-api-key"], undefined);
       const payload = JSON.parse(await readBody(req));
-      assert.equal(payload.cardKey, publicCardKey);
-      assert.equal(payload.token.user.email, "public@example.com");
+      assert.ok([publicCardKey, immediateCardKey].includes(payload.cardKey));
+      assert.equal(payload.token.user.email, payload.cardKey === immediateCardKey ? "immediate@example.com" : "public@example.com");
+      if (payload.cardKey === immediateCardKey) {
+        sendJson(res, 200, {
+          code: 0,
+          message: "success",
+          data: {
+            message: "充值成功，系统已返回成功结果。"
+          }
+        });
+        return;
+      }
       sendJson(res, 201, {
         code: 0,
         message: "success",
@@ -75,6 +88,12 @@ test("Xiaoyu adapter preserves card-key case and uses the documented third-party
           plan_type: "plus"
         }
       });
+      return;
+    }
+
+    if (req.method === "GET" && req.url === `/api/v1/orders/status/${immediateCardKey}`) {
+      immediateStatusQueries += 1;
+      sendJson(res, 404, { code: 40403, message: "订单不存在", data: null });
       return;
     }
 
@@ -191,4 +210,51 @@ test("Xiaoyu adapter preserves card-key case and uses the documented third-party
   assert.equal(publicStarted.data.taskId, publicCardKey);
   const publicSucceeded = await xiaoyuAdapter.queryTaskStatus({ taskId: publicCardKey });
   assert.equal(publicSucceeded.data.status, "success");
+
+  const immediateStarted = await xiaoyuAdapter.startRecharge({
+    cardInfo: immediateCardKey,
+    fullAuthData: {
+      user: { email: "immediate@example.com" },
+      account: { id: "immediate_account" },
+      accessToken: "immediate_token_test"
+    }
+  });
+  assert.equal(immediateStarted.ok, true);
+  assert.equal(immediateStarted.data.taskId, immediateCardKey);
+  assert.equal(immediateStarted.data.orderNo, "");
+  assert.equal(immediateStarted.data.status, "success");
+
+  const reconciledByCard = await xiaoyuAdapter.queryTaskStatus({ taskId: immediateCardKey });
+  assert.equal(reconciledByCard.ok, true);
+  assert.equal(reconciledByCard.data.status, "success");
+  assert.equal(reconciledByCard.data.cardStatus, "used");
+  assert.equal(reconciledByCard.data.cardStatusVerified, true);
+
+  const { rechargeService } = await import(`../src/recharge-service.js?test=${Date.now()}`);
+  const serviceStarted = await rechargeService.confirmRecharge({
+    cardInfo: immediateCardKey,
+    provider: "xiaoyu",
+    userEmail: "immediate@example.com",
+    userGptToken: "immediate_token_test",
+    fullAuthData: {
+      user: { email: "immediate@example.com" },
+      account: { id: "immediate_account" },
+      accessToken: "immediate_token_test"
+    },
+    productId: 3,
+    overwriteRecharge: true,
+    siteSource: "test"
+  });
+  assert.equal(serviceStarted.ok, true);
+  assert.equal(serviceStarted.data.status, "success");
+
+  const statusQueriesBeforeStickyRead = immediateStatusQueries;
+  const stickySuccess = await rechargeService.queryTaskStatus({
+    orderId: serviceStarted.data.orderId,
+    taskId: serviceStarted.data.taskId,
+    provider: "xiaoyu"
+  });
+  assert.equal(stickySuccess.ok, true);
+  assert.equal(stickySuccess.data.status, "success");
+  assert.equal(immediateStatusQueries, statusQueriesBeforeStickyRead);
 });

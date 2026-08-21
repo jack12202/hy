@@ -78,12 +78,23 @@ function normalizeVerify(raw, cardCode) {
   };
 }
 
-function normalizeStart(raw) {
+function normalizeStart(raw, fallbackCardKey) {
   const parsed = envelope(raw);
   const item = parsed.data;
-  const cardKey = typeof item.card_key === "string" ? item.card_key : "";
+  const cardKey = requiredString(item.card_key) ? item.card_key.trim() : fallbackCardKey;
   const orderNo = typeof item.order_no === "string" ? item.order_no : "";
-  const success = parsed.ok && requiredString(cardKey) && requiredString(orderNo);
+  const upstreamStatus = typeof item.status === "string" ? item.status.trim().toLowerCase() : "";
+  const responseMessage = item.message || parsed.message || "";
+  const messageConfirmsSuccess = /充值成功|支付成功|成功结果/.test(responseMessage);
+  const terminalFailure = upstreamStatus === "failed" || upstreamStatus === "cancelled";
+  const success = parsed.ok && requiredString(cardKey) && !terminalFailure;
+  const status = upstreamStatus === "success" || messageConfirmsSuccess
+    ? "success"
+    : upstreamStatus === "pending"
+      ? "queued"
+      : success
+        ? "processing"
+        : "failed";
 
   return {
     success,
@@ -91,8 +102,8 @@ function normalizeStart(raw) {
     providerLabel: "小雨",
     taskId: cardKey,
     orderNo,
-    status: success ? "processing" : "failed",
-    message: item.message || parsed.message || (success ? "订单已进入小雨处理队列。" : "充值提交失败。")
+    status,
+    message: responseMessage || (success ? "订单已进入小雨处理队列。" : "充值提交失败。")
   };
 }
 
@@ -194,7 +205,7 @@ export const xiaoyuAdapter = {
             }
       }
     );
-    const data = normalizeStart(raw);
+    const data = normalizeStart(raw, cardCode);
     return {
       ok: data.success,
       status: raw.status,
@@ -216,7 +227,34 @@ export const xiaoyuAdapter = {
           config.xiaoyuBaseUrl,
           `/api/v1/orders/status/${encodeURIComponent(cardKey)}`
         );
-    const data = normalizeStatus(raw, cardKey);
+    let data = normalizeStatus(raw, cardKey);
+
+    if (!data.success || data.status === "needs_review" || data.status === "failed") {
+      const cardResult = await this.queryCardStatus({ cardInfo: cardKey });
+      const cardData = cardResult.data || {};
+
+      if (cardData.cardStatus === "used") {
+        failedObservations.delete(cardKey);
+        data = {
+          ...data,
+          success: true,
+          status: "success",
+          cardStatus: "used",
+          cardStatusVerified: true,
+          message: "卡密已使用，充值已完成。"
+        };
+      } else if (cardResult.ok && !data.success) {
+        data = {
+          ...data,
+          success: true,
+          status: "needs_review",
+          cardStatus: cardData.cardStatus || "unknown",
+          cardStatusVerified: true,
+          message: "订单状态暂未同步，系统已改用卡密状态继续确认，请不要重复提交。"
+        };
+      }
+    }
+
     return {
       ok: data.success,
       status: raw.status,

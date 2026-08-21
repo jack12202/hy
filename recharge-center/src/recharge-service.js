@@ -380,6 +380,20 @@ export const rechargeService = {
         : null;
     const taskId = order?.upstreamTaskId || input.taskId || "";
 
+    if (order?.status === "success") {
+      return {
+        ok: true,
+        status: 200,
+        data: {
+          orderId: order.id,
+          taskId,
+          status: "success",
+          message: order.message,
+          ...normalizedProviderData(order.provider)
+        }
+      };
+    }
+
     if (!requiredString(taskId)) {
       if (order) {
         return {

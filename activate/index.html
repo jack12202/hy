@@ -780,7 +780,7 @@ window._hmt = _hmt;
           </div>
           <div class="btn-row">
             <button class="primary" type="button" id="verifyCardBtn" onclick="verifyCard()">验证激活码</button>
-            <button class="secondary" type="button" id="queryCardStatusBtn" onclick="queryCardStatusFromInput()">卡密使用查询</button>
+            <button class="secondary" type="button" id="queryCardStatusBtn" onclick="queryCardStatusFromInput()">充值结果查询</button>
             <a rel="noopener" target="_blank" class="link-btn secondary" href="https://fe.dtyuedan.cn/shop/jiage">去购买激活码</a>
           </div>
           <div class="notice is-empty" id="step1Notice"></div>
@@ -1113,7 +1113,7 @@ window._hmt = _hmt;
     }
 
     function cardStatusToolsHtml() {
-      if (currentProvider !== "czgpt") return "";
+      if (currentProvider !== "czgpt" && currentProvider !== "xiaoyu") return "";
       return `
         <div class="card-status-tools">
           <button class="card-status-button" type="button" data-query-card-status onclick="queryCurrentCardStatus()">查询这张卡密状态</button>
@@ -1252,7 +1252,7 @@ window._hmt = _hmt;
     }
 
     async function queryCurrentCardStatus() {
-      if (currentProvider !== "czgpt") return;
+      if (currentProvider !== "czgpt" && currentProvider !== "xiaoyu") return;
       const cardInfo = document.getElementById("cardInfo").value.trim();
       const buttons = Array.from(document.querySelectorAll("[data-query-card-status]"));
       buttons.forEach((button) => {
@@ -1283,26 +1283,53 @@ window._hmt = _hmt;
       const cardInfo = document.getElementById("cardInfo").value.trim();
       const button = document.getElementById("queryCardStatusBtn");
       if (!cardInfo) {
-        setNotice("step1Notice", "请输入卡密", "输入需要查询的卡密后，再点击“卡密使用查询”。", "error");
+        setNotice("step1Notice", "请输入卡密", "输入需要查询的卡密后，再点击“充值结果查询”。", "error");
         return;
       }
       button.disabled = true;
       button.textContent = "查询中...";
       try {
-        const data = await postJson("/api/recharge/query-card-status", {
-          cardInfo,
-          provider: "czgpt"
-        });
-        if (!data.success) {
-          throw new Error(data.message || "卡密状态查询失败，请稍后重试。");
+        if (currentProvider === "xiaoyu") {
+          const data = await postJson("/api/recharge/query-task-status", {
+            taskId: cardInfo,
+            cardInfo,
+            provider: "xiaoyu"
+          });
+          if (!data.success) {
+            throw new Error(data.message || "充值结果查询失败，请稍后重试。");
+          }
+
+          const task = data.data || {};
+          const cardMessage = task.cardStatus ? mapQueriedCardStatus(task) : "";
+          const message = [mapRechargeMessage(task.message, task.status), cardMessage]
+            .filter(Boolean)
+            .join(" ");
+
+          if (task.status === "success") {
+            setNotice("step1Notice", "充值成功", message || "该卡密对应的充值已经完成。", "success");
+          } else if (task.status === "queued" || task.status === "processing" || task.status === "created") {
+            setNotice("step1Notice", "充值处理中", message || "订单正在处理，请稍后重新查询。", "info");
+          } else if (task.status === "needs_review" || task.status === "syncing") {
+            setNotice("step1Notice", "充值结果待确认", message || "订单状态仍在同步，请稍后重新查询，不要重复提交。", "info");
+          } else {
+            setNotice("step1Notice", "充值失败", message || "请保留页面信息并联系人工核查。", "error");
+          }
+        } else {
+          const data = await postJson("/api/recharge/query-card-status", {
+            cardInfo,
+            provider: currentProvider || "czgpt"
+          });
+          if (!data.success) {
+            throw new Error(data.message || "卡密状态查询失败，请稍后重试。");
+          }
+          const message = mapQueriedCardStatus(data.data || {});
+          setNotice("step1Notice", "卡密使用查询结果", message, "success");
         }
-        const message = mapQueriedCardStatus(data.data || {});
-        setNotice("step1Notice", "卡密使用查询结果", message, "success");
       } catch (error) {
-        setNotice("step1Notice", "卡密状态查询失败", error.message || "请稍后重试或联系人工。", "error");
+        setNotice("step1Notice", "充值结果查询失败", error.message || "请稍后重试或联系人工。", "error");
       } finally {
         button.disabled = false;
-        button.textContent = "卡密使用查询";
+        button.textContent = "充值结果查询";
       }
     }
 

@@ -81,6 +81,9 @@ jobs:
           ! grep -q '<link rel="canonical"' /tmp/gptccc-activate.html
           grep -q '<title>嘉哥AI Plus充值系统｜GPTC.cc</title>' /tmp/gptccc-activate.html
           grep -q '/api/recharge/verify-card' /tmp/gptccc-activate.html
+          grep -q '>充值结果查询</button>' /tmp/gptccc-activate.html
+          grep -q '/api/recharge/query-task-status' /tmp/gptccc-activate.html
+          grep -q 'currentProvider === "xiaoyu"' /tmp/gptccc-activate.html
           ! grep -q 'http-equiv="refresh"' /tmp/gptccc-activate.html
           ! grep -q '廖' /tmp/gptccc-activate.html
           curl -fsSL https://www.gptc.cc/robots.txt > /tmp/gptccc-robots.txt

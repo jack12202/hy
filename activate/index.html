@@ -894,6 +894,7 @@ window._hmt = _hmt;
     let currentTaskId = "";
     let currentOrderId = "";
     let currentProvider = "";
+    let currentProviderSessionId = "";
     let currentProviderLabel = "自动通道";
     let currentProductId = 3;
     let currentParsedSecret = null;
@@ -1006,7 +1007,7 @@ window._hmt = _hmt;
 
     function normalizeProvider(value) {
       const provider = typeof value === "string" ? value.trim().toLowerCase() : "";
-      if (provider === "sange" || provider === "ayan" || provider === "czgpt" || provider === "xiaoyu") return provider;
+      if (provider === "sange" || provider === "ayan" || provider === "j" || provider === "ajian" || provider === "czgpt" || provider === "xiaoyu") return provider === "ajian" ? "j" : provider;
       return "";
     }
 
@@ -1405,6 +1406,7 @@ window._hmt = _hmt;
         }
         setCurrentProvider(upstream.selectedProvider || upstream.provider || currentProvider, { locked: true });
         currentProviderLabel = upstream.providerLabel || currentProviderLabel;
+        currentProviderSessionId = upstream.providerSessionId || "";
         currentProductId = Number(upstream.productId || 3);
         setNotice("step1Notice", "激活码验证通过", "激活码可继续使用，进入下一步获取充值密钥。", "success");
         setTextIfPresent("confirmCard", cardInfo);
@@ -1462,6 +1464,7 @@ window._hmt = _hmt;
       const payload = {
         cardInfo: document.getElementById("cardInfo").value.trim(),
         provider: currentProvider || undefined,
+        providerSessionId: currentProviderSessionId || undefined,
         userEmail: currentParsedSecret.userEmail,
         userGptToken: currentParsedSecret.userGptToken,
         fullAuthData: JSON.stringify(currentParsedSecret.fullAuthData),

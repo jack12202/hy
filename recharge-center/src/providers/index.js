@@ -1,4 +1,5 @@
 import { normalizeProvider } from "../utils.js";
+import { ajianAdapter } from "./ajian-adapter.js";
 import { ayanAdapter } from "./ayan-adapter.js";
 import { czgptAdapter } from "./czgpt-adapter.js";
 import {
@@ -14,6 +15,7 @@ import { xiaoyuAdapter } from "./xiaoyu-adapter.js";
 export const providerAdapters = {
   sange: sangeAdapter,
   ayan: ayanAdapter,
+  j: ajianAdapter,
   czgpt: czgptAdapter,
   xiaoyu: xiaoyuAdapter,
   sange_external: sangeExternalAdapter,

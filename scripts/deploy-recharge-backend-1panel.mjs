@@ -257,6 +257,7 @@ PORT=8788
 DEFAULT_PROVIDER=czgpt
 ADMIN_TOKEN=${adminToken}
 AYAN_BASE_URL=https://api.987ai.vip
+AJIAN_BASE_URL=https://ajian.chat
 UPSTREAM_BASE_URL=https://kkk.ow800.com
 RESELLER_BASE_URL=https://666ai.vip
 DATA_FILE=/app/data/orders.json

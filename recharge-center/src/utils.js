@@ -50,6 +50,8 @@ export function normalizeProvider(value, fallback = "sange") {
   if (
     provider === "sange" ||
     provider === "ayan" ||
+    provider === "j" ||
+    provider === "ajian" ||
     provider === "czgpt" ||
     provider === "xiaoyu" ||
     provider === "sange_external" ||
@@ -57,7 +59,7 @@ export function normalizeProvider(value, fallback = "sange") {
     provider === "czgpt_external" ||
     provider === "dnscon" ||
     provider === "9977ai"
-  ) return provider;
+  ) return provider === "ajian" ? "j" : provider;
   return fallback;
 }
 

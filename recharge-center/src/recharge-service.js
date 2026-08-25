@@ -305,6 +305,7 @@ export const rechargeService = {
       userEmail: secret.userEmail,
       userGptToken: secret.userGptToken,
       fullAuthData: secret.fullAuthData,
+      providerSessionId: input.providerSessionId || "",
       authProvider: typeof secret.authProvider === "string" ? secret.authProvider : "",
       productId: Number(productId || config.defaultProductId),
       overwriteRecharge: Boolean(overwriteRecharge)

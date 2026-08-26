@@ -3,12 +3,12 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>嘉哥AI Plus充值系统｜GPTC.cc</title>
+  <title>嘉哥GPT充值站｜GPTC.cc</title>
   <meta name="description" content="GPTC.cc 站内充值中心：先验证激活码，再粘贴充值密钥，最后确认充值到自己的 AI 账号。">
   <meta name="robots" content="noindex, nofollow, noarchive, nosnippet">
   <meta name="baiduspider" content="nofollow, noarchive">
   <meta name="referrer" content="no-referrer">
-  <meta property="og:title" content="嘉哥AI Plus充值系统｜GPTC.cc">
+  <meta property="og:title" content="嘉哥GPT充值站｜GPTC.cc">
   <meta property="og:description" content="已购买激活码后，直接在 GPTC.cc 站内完成账号识别与充值确认。">
   <meta property="og:type" content="website">
   <style>
@@ -68,6 +68,12 @@
       --source-accent-2: #c026d3;
       --source-cue-text: #ffffff;
       --source-soft: #faf5ff;
+    }
+    body.provider-xiaoyu {
+      --source-accent: #0369a1;
+      --source-accent-2: #06b6d4;
+      --source-cue-text: #ffffff;
+      --source-soft: #ecfeff;
     }
     .wrap { width: min(980px, calc(100% - 28px)); margin: 14px auto 36px; }
     .topbar {
@@ -608,6 +614,132 @@
       font-size: 14px;
       line-height: 1.7;
     }
+
+    /* Unified compact UI: presentation-only changes; provider APIs stay untouched. */
+    .wrap { width: min(1080px, calc(100% - 32px)); margin-top: 12px; }
+    .topbar { margin-bottom: 12px; }
+    .hero {
+      padding: 24px 22px 22px;
+      margin-bottom: 12px;
+      border-radius: 20px;
+      text-align: center;
+    }
+    .hero h1 { margin: 0 0 8px; font-size: clamp(30px, 3.4vw, 36px); }
+    .hero p { max-width: none; font-size: 15px; }
+    .hero-pills { display: none; }
+    .hero-flow {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+      margin: 0 auto;
+      color: #64748b;
+      font-size: 14px;
+      font-weight: 700;
+    }
+    .hero-flow i {
+      color: #94a3b8;
+      font-style: normal;
+      font-size: 16px;
+    }
+    .panel { border-radius: 18px; }
+    body.stage-compact .hero { display: none; }
+    body.stage-compact .panel { margin-top: 12px; }
+    #stage-2 { max-width: 900px; margin: 0 auto; }
+    #stage-2 .notice {
+      margin-bottom: 10px;
+      padding: 11px 14px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    #stage-2 .notice strong {
+      display: inline;
+      margin: 0 8px 0 0;
+      font-size: 15px;
+    }
+    #stage-2 .verified-card.show {
+      justify-content: flex-start;
+      width: fit-content;
+      max-width: 100%;
+      margin-bottom: 12px;
+      padding: 6px 10px;
+      font-size: 13px;
+    }
+    #stage-2 .two-col { display: block; }
+    #stage-2 .two-col > div:last-child { display: none; }
+    #stage-2 .field + .field { margin-top: 12px; }
+    #stage-2 .btn-row { gap: 8px; margin-top: 12px; }
+    #stage-2 .btn-row:first-child { margin-top: 0; }
+    #stage-2 textarea { min-height: 160px; }
+    #stage-2 .field small { font-size: 12px; }
+    #stage-3 { max-width: 900px; margin: 0 auto; }
+    #stage-3 .notice {
+      margin-bottom: 12px;
+      padding: 11px 14px;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+    #stage-3 .notice strong {
+      display: inline;
+      margin: 0 8px 0 0;
+      font-size: 15px;
+    }
+    #stage-3 .two-col { display: block; }
+    #stage-3 .two-col > div:last-child { display: none; }
+    #stage-3 .info-card { padding: 16px; }
+    #stage-3 .info-card h3 { margin-bottom: 6px; font-size: 18px; }
+    #stage-3 .kv { padding: 10px 0; }
+    #stage-3 .checkbox { margin-top: 12px; font-size: 14px; }
+    #stage-3 .checkbox small { font-size: 12px; }
+    #stage-3 .btn-row { gap: 8px; margin-top: 12px; }
+    #stage-3 .progress { margin-top: 12px; padding: 12px 14px; font-size: 13px; }
+    #stage-3 .queue-meta { gap: 4px 12px; font-size: 12px; }
+    #stage-3 .result-card { margin-top: 12px; padding: 14px; }
+    #stage-3 .result-top { margin-bottom: 8px; }
+    #stage-3 .result-title { font-size: 22px; }
+    #stage-3 .result-subtitle { font-size: 13px; line-height: 1.5; }
+    #stage-3 .result-actions { margin-top: 8px; gap: 6px; font-size: 13px; }
+    #stage-3 .result-actions div { padding: 8px 10px; }
+    .result-detail { display: flex; justify-content: space-between; gap: 12px; }
+    .result-detail span { color: #64748b; }
+    .result-detail strong { color: inherit; word-break: break-all; text-align: right; }
+    .flow-heading {
+      padding: 16px 22px 0;
+      color: #0f172a;
+      font-size: 18px;
+      font-weight: 850;
+    }
+    .stepper { gap: 8px; padding: 10px 14px; }
+    .step {
+      min-height: 64px;
+      padding: 10px 12px;
+      border-width: 1px;
+      border-radius: 12px;
+      display: grid;
+      grid-template-columns: 32px minmax(0, 1fr);
+      grid-template-rows: auto auto;
+      align-items: center;
+      column-gap: 10px;
+      text-align: left;
+    }
+    .step .num { grid-row: 1 / span 2; }
+    .step strong { font-size: 15px; }
+    .step span { font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .content { padding: 18px 22px 22px; }
+    .notice { margin-bottom: 14px; padding: 13px 16px; }
+    .notice strong { margin-bottom: 4px; font-size: 16px; }
+    .two-col { grid-template-columns: minmax(0, 1.25fr) minmax(260px, 0.75fr); gap: 14px; }
+    .info-card { padding: 16px; border-radius: 14px; }
+    .info-card h3 { margin-bottom: 8px; font-size: 18px; }
+    .kv { padding: 11px 0; }
+    .tip-box, .support-box { margin-top: 14px; padding: 13px 15px; }
+    .footer-note { margin-top: 14px; font-size: 13px; }
+    .result-card { padding: 16px; border-radius: 15px; }
+    .result-title { font-size: 24px; }
+    .result-actions { margin-top: 12px; gap: 7px; font-size: 13px; }
+    .result-actions div { padding: 8px 10px; }
+    #stage-3 .btn-row { position: sticky; bottom: 10px; z-index: 4; padding-top: 10px; background: linear-gradient(180deg, rgba(255,255,255,0), #fff 28%); }
     @media (max-width: 860px) {
       .two-col { grid-template-columns: 1fr; }
       .step { min-height: 78px; }
@@ -633,6 +765,10 @@
       body.provider-sange .provider-cue { transform: translateY(-6px) rotate(-2deg); }
       .hero p { font-size: 14px; line-height: 1.5; }
       .hero-pills { display: none; }
+      .hero-flow { gap: 5px; font-size: 13px; }
+      .flow-heading { padding: 14px 14px 0; font-size: 16px; }
+      #stage-2 .verified-card.show { width: 100%; }
+      #stage-3 .info-card { padding: 14px; }
       .panel { border-radius: 14px; }
       .stepper {
         grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -739,7 +875,7 @@ window._hmt = _hmt;
     <div class="topbar">
       <a class="brand" href="/">
         <span class="brand-mark">嘉</span>
-        <span>嘉哥 GPTC.cc</span>
+        <span>嘉哥GPT充值站</span>
       </a>
       <div class="top-actions">
         <a class="mini-btn" href="/">返回开通首页</a>
@@ -749,17 +885,18 @@ window._hmt = _hmt;
     </div>
 
     <section class="hero">
-      <span class="eyebrow">站内充值中心 · 不再跳到外部充值页</span>
-      <h1>嘉哥AI Plus充值系统<span class="provider-cue" aria-hidden="true"></span></h1>
-      <p>输入激活码验证可用后，在已登录的 GPT 账号页面获取充值密钥，核对账号信息无误后即可确认充值。</p>
-      <div class="hero-pills">
-        <span class="pill">充值到自己的 GPT 账号</span>
-        <span class="pill">无需提供账号密码</span>
-        <span class="pill">未登录先登录再获取密钥</span>
+      <h1>AI Plus账号充值<span class="provider-cue" aria-hidden="true"></span></h1>
+      <div class="hero-flow" aria-label="充值流程">
+        <span>验证激活码</span>
+        <i aria-hidden="true">→</i>
+        <span>获取充值密钥</span>
+        <i aria-hidden="true">→</i>
+        <span>确认充值</span>
       </div>
     </section>
 
     <section class="panel">
+      <div class="flow-heading">充值流程</div>
       <div class="stepper">
         <div class="step active" id="step-1">
           <div class="num">1</div>
@@ -795,8 +932,8 @@ window._hmt = _hmt;
 
         <div class="stage" id="stage-2">
           <div class="notice" id="step2Notice">
-            <strong>第 2 步：获取充值密钥</strong>
-            请先确认当前浏览器已登录需要充值的 GPT 账号。已经登录就直接获取密钥；没有登录就先登录账号，再回来获取密钥。
+            <strong>获取充值密钥</strong>
+            请先登录 GPT 账号，已登录可直接获取密钥。
           </div>
           <div class="verified-card" id="verifiedCardBox">
             <span class="verified-card-mark">✓</span>
@@ -804,36 +941,22 @@ window._hmt = _hmt;
           </div>
           <div class="two-col">
             <div>
-              <div class="field">
-                <label>操作步骤</label>
+              <div class="field stage2-actions">
+                <label>登录后获取密钥</label>
                 <div class="btn-row" style="margin-top:0">
                   <a class="link-btn green" href="https://chatgpt.com/auth/login" target="_blank" rel="noopener noreferrer">先登录账号</a>
                   <a class="link-btn primary" href="https://chatgpt.com/api/auth/session" target="_blank" rel="noopener noreferrer">获取充值密钥</a>
                 </div>
-                <small>如果已经登录，可以直接获取充值密钥。打开密钥页面后，请复制页面显示的全部内容。</small>
+                <small>打开密钥页面后，请复制页面显示的全部内容。</small>
               </div>
-              <div class="field">
+              <div class="field stage2-secret-field">
                 <label for="secretJson">粘贴充值密钥</label>
-                <textarea id="secretJson" placeholder="打开充值密钥页面后，复制页面显示的全部内容并粘贴到这里"></textarea>
-                <small>请完整复制，不要删减。系统会自动识别账号邮箱，并用于完成本次充值。</small>
+                <textarea id="secretJson" placeholder="请把密钥页面的全部内容粘贴到这里"></textarea>
+                <small>请完整复制，系统会自动识别账号信息。</small>
               </div>
               <div class="btn-row">
                 <button class="secondary" type="button" onclick="goStep(1)">返回上一步</button>
                 <button class="primary" type="button" id="parseSecretBtn" onclick="parseSecret()">校验账号信息</button>
-              </div>
-            </div>
-            <div>
-              <div class="info-card">
-                <h3>简单流程</h3>
-                <div class="kvs">
-                  <div class="kv"><span>已登录</span><span>直接获取充值密钥</span></div>
-                  <div class="kv"><span>未登录</span><span>先登录账号，再获取密钥</span></div>
-                  <div class="kv"><span>下一步</span><span>核对邮箱后确认充值</span></div>
-                </div>
-              </div>
-              <div class="tip-box">
-                <strong>复制提醒</strong>
-                如果密钥页面提示未登录，请先完成登录，再重新点击获取充值密钥。
               </div>
             </div>
           </div>
@@ -841,8 +964,8 @@ window._hmt = _hmt;
 
         <div class="stage" id="stage-3">
           <div class="notice" id="step3Notice">
-            <strong>第 3 步：确认充值</strong>
-            请核对账号邮箱和激活码，确认是你要充值的账号后再提交。
+            <strong>确认充值</strong>
+            请核对账号信息，确认无误后提交。
           </div>
           <div class="two-col">
             <div class="info-card">
@@ -854,7 +977,7 @@ window._hmt = _hmt;
               </div>
               <label class="checkbox">
                 <input type="checkbox" id="overwriteRecharge" onchange="updateConfirmButtonState()">
-                <span>我确认以上账号和激活码无误，提交充值<br><small>提交后系统会自动处理并查询结果。</small></span>
+                <span>我确认账号和激活码无误<br><small>提交后系统自动查询结果</small></span>
               </label>
               <div class="btn-row">
                 <button class="secondary" type="button" onclick="goStep(2)">返回修改</button>
@@ -865,25 +988,6 @@ window._hmt = _hmt;
                 系统正在提交充值请求，请不要重复点击。
               </div>
               <div class="result-card success" id="resultBox" style="display:none;">
-              </div>
-            </div>
-            <div>
-              <div class="info-card">
-                <h3>提交前提醒</h3>
-                <div class="kvs">
-                  <div class="kv"><span>账号邮箱</span><span>是你要充值的账号</span></div>
-                  <div class="kv"><span>激活码</span><span>与本次购买一致</span></div>
-                  <div class="kv"><span>提交后</span><span>系统会自动查询结果</span></div>
-                  <div class="kv"><span>如遇异常</span><span>保留页面提示便于核查</span></div>
-                </div>
-              </div>
-              <div class="footer-note">
-                如果页面一直显示处理中，请不要连续重复提交。优先保存账号邮箱、激活码和页面提示，再联系客服协助核查。
-              </div>
-              <div class="support-box">
-                <strong>需要人工协助？</strong>
-                充值失败、长时间处理中，或看不懂页面提示时，可以复制微信联系人工处理。
-                <button class="support-action" type="button" onclick="copySupportContact()">复制微信联系人工</button>
               </div>
             </div>
           </div>
@@ -984,6 +1088,7 @@ window._hmt = _hmt;
 
     function goStep(step) {
       currentStep = step;
+      document.body.classList.toggle("stage-compact", step > 1);
       document.querySelectorAll(".stage").forEach((node) => node.classList.remove("active"));
       document.querySelectorAll(".step").forEach((node) => {
         node.classList.remove("active");
@@ -1149,7 +1254,7 @@ window._hmt = _hmt;
         <div class="queue-meta">
           ${queueLine ? `<div>${escapeHtml(queueLine)}</div>` : ""}
           ${remainingLine ? `<div>${escapeHtml(remainingLine)}，实际时间以系统处理进度为准。</div>` : ""}
-          <div>${isQueueChannel ? "卡密已进入处理流程，请先等待本次结果。此时重复提交或到其他平台再次购买卡密，可能导致两张卡密都被消耗，而有效期仍只有一个月。" : "请不要重复点击，系统会自动查询结果。"}</div>
+          <div>${isQueueChannel ? "卡密已进入处理流程，请等待本次结果。" : "请勿重复提交，系统会自动查询结果。"}</div>
         </div>
         ${cardStatusToolsHtml()}
       `;
@@ -1166,6 +1271,7 @@ window._hmt = _hmt;
 
     function renderResultBox(type, message) {
       const resultBox = document.getElementById("resultBox");
+      const accountEmail = document.getElementById("confirmEmail")?.textContent?.trim() || "-";
       const success = type === "success";
       const syncing = type === "syncing";
       const review = type === "review";
@@ -1180,8 +1286,7 @@ window._hmt = _hmt;
             <span class="result-badge">已完成</span>
           </div>
           <div class="result-actions">
-            <div>系统已经返回成功结果，你现在可以返回账号页面确认 AI Plus 状态。</div>
-            <div>如果权益没有立刻刷新出来，先等待片刻，再重新打开账号页面查看。</div>
+            <div class="result-detail"><span>充值账号</span><strong>${escapeHtml(accountEmail)}</strong></div>
             ${cardStatusToolsHtml()}
           </div>
         `
@@ -1195,8 +1300,7 @@ window._hmt = _hmt;
               <span class="result-badge">已使用</span>
             </div>
             <div class="result-actions">
-              <div>卡密已经被系统接收，请不要重复提交，也不要到其他平台再次购买卡密。</div>
-              <div>如果账号暂未显示 AI Plus，请稍等片刻后重新打开账号页面；系统仍会继续查询任务结果。</div>
+              <div>卡密已被系统接收，请等待账号同步，不要重复提交。</div>
               ${statusActionButtonsHtml()}
               ${cardStatusToolsHtml()}
             </div>
@@ -1211,8 +1315,7 @@ window._hmt = _hmt;
                 <span class="result-badge">待核查</span>
               </div>
               <div class="result-actions">
-                <div>暂时没有取得最终结果，不代表充值失败。系统会继续自动查询。</div>
-                <div>原任务确认前，请勿重复提交或购买其他平台卡密，避免两张卡密同时被消耗。</div>
+                <div>暂未取得最终结果，系统会继续查询，请勿重复提交。</div>
                 ${statusActionButtonsHtml()}
                 ${cardStatusToolsHtml()}
               </div>
@@ -1226,8 +1329,7 @@ window._hmt = _hmt;
             <span class="result-badge">需处理</span>
           </div>
           <div class="result-actions">
-            <div>请保留当前页面提示，方便后续联系客服核查。</div>
-            <div>如果刚刚已经重复提交过，请先不要再继续操作，等待人工确认更稳妥。</div>
+            <div>请保留页面提示，联系客服核查。</div>
             <button class="support-action" type="button" onclick="copySupportContact()">联系人工处理</button>
             ${cardStatusToolsHtml()}
           </div>

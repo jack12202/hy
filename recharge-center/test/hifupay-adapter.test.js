@@ -19,6 +19,14 @@ function sendJson(res, status, payload) {
 test("hifupay adapter submits Plus PH tasks and normalizes polling status", async t => {
   let pollCount = 0;
   const upstream = http.createServer(async (req, res) => {
+    if (req.method === "POST" && req.url === "/api/hfp/login") {
+      const body = JSON.parse(await readBody(req));
+      assert.equal(body.apiKey, "hifupay-test-key");
+      assert.equal(body.platform, "haifupaytop");
+      sendJson(res, 200, { success: true, apiKey: "hifupay-session-key" });
+      return;
+    }
+
     if (req.method === "POST" && req.url === "/verify") {
       const body = JSON.parse(await readBody(req));
       assert.deepEqual(body, { cardInfo: "H-TEST-CARD", provider: "h" });
@@ -27,7 +35,7 @@ test("hifupay adapter submits Plus PH tasks and normalizes polling status", asyn
     }
 
     if (req.method === "POST" && req.url === "/api/start") {
-      assert.equal(req.headers["x-api-key"], "hifupay-test-key");
+      assert.equal(req.headers["x-api-key"], "hifupay-session-key");
       const body = JSON.parse(await readBody(req));
       assert.equal(body.plan, "plus");
       assert.equal(body.region, "PH");
@@ -40,7 +48,7 @@ test("hifupay adapter submits Plus PH tasks and normalizes polling status", asyn
     }
 
     if (req.method === "GET" && req.url === "/api/status/H-TASK-1") {
-      assert.equal(req.headers["x-api-key"], "hifupay-test-key");
+      assert.equal(req.headers["x-api-key"], "hifupay-session-key");
       pollCount += 1;
       sendJson(res, 200, pollCount === 1
         ? { status: "running", paymentConfirmed: false }

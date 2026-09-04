@@ -2,14 +2,16 @@ import { config } from "../config.js";
 import { extractCardCode, requiredString } from "../utils.js";
 import { requestJson } from "./http-json.js";
 
-function apiKey() {
+function sourceApiKey() {
   return process.env.HIFUPAY_API_KEY ?? config.hifupayApiKey;
 }
 
-function apiHeaders() {
+let authorizedApiKey = "";
+
+function apiHeaders(apiKey) {
   return {
     "Content-Type": "application/json",
-    ...(apiKey() ? { "X-Api-Key": apiKey() } : {})
+    ...(apiKey ? { "X-Api-Key": apiKey } : {})
   };
 }
 
@@ -81,6 +83,25 @@ function tokenPayload(fullAuthData) {
   return typeof fullAuthData === "string" ? fullAuthData : JSON.stringify(fullAuthData || {});
 }
 
+async function login() {
+  const key = sourceApiKey();
+  if (!requiredString(key)) return { ok: false, status: 503, message: "h通道 API Key 未配置。" };
+  if (requiredString(authorizedApiKey)) return { ok: true, status: 200, apiKey: authorizedApiKey };
+
+  const raw = await requestJson(config.hifupayBaseUrl, "/api/hfp/login", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    payload: { apiKey: key, platform: "haifupaytop" }
+  });
+  const body = raw.data && typeof raw.data === "object" ? raw.data : {};
+  if (!raw.ok || body.success !== true || !requiredString(body.apiKey)) {
+    return { ok: false, status: raw.status, message: errorMessage(raw, "h通道 API Key 登录失败。") };
+  }
+
+  authorizedApiKey = body.apiKey;
+  return { ok: true, status: raw.status, apiKey: authorizedApiKey };
+}
+
 export const hifupayAdapter = {
   key: "h",
   label: "h",
@@ -110,9 +131,9 @@ export const hifupayAdapter = {
   },
 
   async startRecharge({ fullAuthData }) {
-    const key = apiKey();
-    if (!requiredString(key)) {
-      return { ok: false, status: 503, data: { provider: "h", providerLabel: "h", message: "h通道 API Key 未配置。" } };
+    const session = await login();
+    if (!session.ok) {
+      return { ok: false, status: session.status || 502, data: { provider: "h", providerLabel: "h", message: session.message } };
     }
 
     const cardId = process.env.HIFUPAY_CARD_ID ?? config.hifupayCardId;
@@ -126,7 +147,7 @@ export const hifupayAdapter = {
 
     const raw = await requestJson(config.hifupayBaseUrl, "/api/start", {
       method: "POST",
-      headers: apiHeaders(),
+      headers: apiHeaders(session.apiKey),
       payload: {
         token: tokenPayload(fullAuthData),
         plan: config.hifupayPlan,
@@ -141,8 +162,13 @@ export const hifupayAdapter = {
   },
 
   async queryTaskStatus({ taskId }) {
+    const session = await login();
+    if (!session.ok) {
+      return { ok: false, status: session.status || 502, data: { provider: "h", providerLabel: "h", status: "failed", message: session.message } };
+    }
+
     const raw = await requestJson(config.hifupayBaseUrl, `/api/status/${encodeURIComponent(taskId)}`, {
-      headers: apiHeaders()
+      headers: apiHeaders(session.apiKey)
     });
     const data = normalizeStatus(raw);
     return { ok: raw.ok, status: raw.status, data };

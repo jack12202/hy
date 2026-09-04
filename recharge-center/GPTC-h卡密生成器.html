@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>GPTC h 卡密生成器</title>
+  <style>
+    :root { color-scheme: light; --bg: #f4f7fb; --panel: #fff; --text: #172033; --muted: #667085; --line: #d9e2ef; --primary: #0f766e; --soft: #ecfdf5; }
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; padding: 22px; color: var(--text); background: radial-gradient(circle at 8% 0%, #d9f7f2, transparent 32%), var(--bg); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif; }
+    main { width: min(760px, 100%); margin: 0 auto; }
+    .panel { padding: 24px; border: 1px solid var(--line); border-radius: 20px; background: rgba(255,255,255,.96); box-shadow: 0 20px 55px rgba(15,23,42,.1); }
+    h1 { margin: 0 0 8px; font-size: 28px; }
+    .intro { margin: 0 0 20px; color: var(--muted); line-height: 1.65; }
+    .form { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    label { display: grid; gap: 7px; font-weight: 800; }
+    label:first-child { grid-column: 1 / -1; }
+    input { width: 100%; min-height: 46px; padding: 0 12px; border: 1px solid var(--line); border-radius: 10px; font: inherit; outline: none; }
+    input:focus { border-color: #14b8a6; box-shadow: 0 0 0 4px rgba(20,184,166,.12); }
+    .actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 16px; }
+    button { min-height: 44px; padding: 0 17px; border: 1px solid var(--line); border-radius: 10px; color: #334155; background: #fff; font: inherit; font-weight: 850; cursor: pointer; }
+    button.primary { color: #fff; border-color: transparent; background: linear-gradient(135deg, #0f766e, #14b8a6); }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+    .status { margin-top: 16px; padding: 12px 14px; border: 1px solid #bfdbfe; border-radius: 10px; color: #1e3a8a; background: #eff6ff; line-height: 1.6; white-space: pre-wrap; }
+    .status.error { border-color: #fda4af; color: #9f1239; background: #fff1f2; }
+    .result { display: none; margin-top: 18px; }
+    .result.show { display: block; }
+    .result-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-bottom: 10px; }
+    h2 { margin: 0; font-size: 20px; }
+    .result-note { color: #166534; font-size: 13px; }
+    .cards { display: grid; gap: 10px; max-height: 460px; overflow: auto; }
+    .card { padding: 12px; border: 1px solid #bbf7d0; border-radius: 10px; background: var(--soft); }
+    .card code { display: block; overflow-wrap: anywhere; color: #14532d; font-size: 14px; font-weight: 900; }
+    .card a { display: block; margin-top: 6px; overflow-wrap: anywhere; color: #2563eb; font-size: 12px; }
+    .tip { margin: 16px 0 0; padding: 12px 14px; border: 1px solid #fed7aa; border-radius: 10px; color: #9a3412; background: #fff7ed; font-size: 13px; line-height: 1.6; }
+    @media (max-width: 560px) { body { padding: 12px; } .panel { padding: 17px; border-radius: 15px; } .form { grid-template-columns: 1fr; } label:first-child { grid-column: auto; } button { flex: 1 1 100%; } }
+  </style>
+</head>
+<body>
+  <main>
+    <section class="panel">
+      <h1>GPTC h 通道卡密生成器</h1>
+      <p class="intro">输入管理密码后，由服务器生成 h 通道卡密。卡密只在生成后展示一次，刷新页面不会再次显示完整卡密。</p>
+
+      <div class="form">
+        <label>管理密码
+          <input id="adminToken" type="password" autocomplete="current-password" placeholder="请输入 ADMIN_TOKEN">
+        </label>
+        <label>生成数量
+          <input id="count" type="number" min="1" max="100" value="1">
+        </label>
+        <label>有效天数
+          <input id="expiresInDays" type="number" min="0" value="0" placeholder="0 表示永久有效">
+        </label>
+      </div>
+
+      <div class="actions">
+        <button class="primary" id="generate" type="button">生成 h 卡密</button>
+        <button id="copyCodes" type="button" disabled>复制全部卡密</button>
+        <button id="copyLinks" type="button" disabled>复制全部链接</button>
+      </div>
+
+      <div class="status" id="status">准备就绪。请先输入管理密码。</div>
+
+      <section class="result" id="result">
+        <div class="result-head">
+          <h2>生成结果</h2>
+          <span class="result-note">请立即保存</span>
+        </div>
+        <div class="cards" id="cards"></div>
+        <div class="tip">完整卡密和激活链接都属于敏感信息，请按订单单独发送，不要公开整批复制。</div>
+      </section>
+    </section>
+  </main>
+
+  <script>
+    (() => {
+      "use strict";
+
+      const API_URL = "https://www.gptc.cc/api/admin/h-cards";
+      const tokenInput = document.getElementById("adminToken");
+      const statusBox = document.getElementById("status");
+      const resultBox = document.getElementById("result");
+      const cardsBox = document.getElementById("cards");
+      const generateButton = document.getElementById("generate");
+      const copyCodesButton = document.getElementById("copyCodes");
+      const copyLinksButton = document.getElementById("copyLinks");
+      let generatedCards = [];
+
+      function setStatus(message, error = false) {
+        statusBox.textContent = message;
+        statusBox.classList.toggle("error", error);
+      }
+
+      async function copyText(value) {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(value);
+          return;
+        }
+        const helper = document.createElement("textarea");
+        helper.value = value;
+        helper.style.position = "fixed";
+        helper.style.opacity = "0";
+        document.body.appendChild(helper);
+        helper.select();
+        if (!document.execCommand("copy")) throw new Error("浏览器未允许复制，请手动选择结果。");
+        helper.remove();
+      }
+
+      function renderCards() {
+        cardsBox.replaceChildren();
+        for (const card of generatedCards) {
+          const item = document.createElement("div");
+          item.className = "card";
+          const code = document.createElement("code");
+          code.textContent = card.code;
+          const link = document.createElement("a");
+          link.href = card.link;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = card.link;
+          item.append(code, link);
+          cardsBox.appendChild(item);
+        }
+        resultBox.classList.toggle("show", generatedCards.length > 0);
+        copyCodesButton.disabled = generatedCards.length === 0;
+        copyLinksButton.disabled = generatedCards.length === 0;
+      }
+
+      async function generate() {
+        const adminToken = tokenInput.value.trim();
+        if (!adminToken) {
+          setStatus("请先输入管理密码。", true);
+          tokenInput.focus();
+          return;
+        }
+
+        const count = Number(document.getElementById("count").value);
+        const expiresInDays = Number(document.getElementById("expiresInDays").value);
+        if (!Number.isInteger(count) || count < 1 || count > 100) {
+          setStatus("生成数量只能填写 1–100。", true);
+          return;
+        }
+        if (!Number.isFinite(expiresInDays) || expiresInDays < 0) {
+          setStatus("有效天数不能小于 0。", true);
+          return;
+        }
+
+        generateButton.disabled = true;
+        copyCodesButton.disabled = true;
+        copyLinksButton.disabled = true;
+        setStatus("正在请求服务器生成，请稍候……");
+        try {
+          // 使用 text/plain 发送 JSON，桌面 file:// 页面无需预检请求即可调用后台。
+          const response = await fetch(API_URL, {
+            method: "POST",
+            headers: { "Content-Type": "text/plain;charset=UTF-8" },
+            body: JSON.stringify({ adminToken, count, expiresInDays, productId: 3 })
+          });
+          const data = await response.json();
+          if (!response.ok || !data.success) throw new Error(data.message || "生成失败，请检查管理密码和后台地址。");
+          generatedCards = Array.isArray(data.data?.cards) ? data.data.cards : [];
+          renderCards();
+          setStatus("已生成 " + generatedCards.length + " 张 h 卡密。请立即复制并保存。" + (expiresInDays ? "有效期：" + expiresInDays + " 天。" : ""));
+        } catch (error) {
+          generatedCards = [];
+          renderCards();
+          setStatus(error.message || "无法连接后台，请确认后端已部署并重启。", true);
+        } finally {
+          generateButton.disabled = false;
+        }
+      }
+
+      generateButton.addEventListener("click", generate);
+      copyCodesButton.addEventListener("click", async () => {
+        try { await copyText(generatedCards.map(card => card.code).join("\n")); setStatus("已复制全部卡密。"); }
+        catch (error) { setStatus(error.message, true); }
+      });
+      copyLinksButton.addEventListener("click", async () => {
+        try { await copyText(generatedCards.map(card => card.link).join("\n")); setStatus("已复制全部激活链接。"); }
+        catch (error) { setStatus(error.message, true); }
+      });
+    })();
+  </script>
+</body>
+</html>

@@ -267,6 +267,9 @@ function serveHCardAdmin(res) {
     .card { padding: 12px; border: 1px solid #dbe4ee; border-radius: 10px; background: #f8fafc; overflow-wrap: anywhere; }
     .card code { display: block; color: #0f172a; font-weight: 900; }
     .card a { display: block; margin-top: 5px; color: #2563eb; font-size: 13px; }
+    .row-actions { display: flex; gap: 8px; }
+    .row-actions button { min-height: 34px; padding: 0 10px; font-size: 13px; }
+    .row-actions button.danger { color: #9f1239; background: #fff1f2; border: 1px solid #fda4af; }
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
     th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
@@ -298,7 +301,7 @@ function serveHCardAdmin(res) {
       <button class="secondary" id="refresh" type="button">刷新列表</button>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>卡密</th><th>状态</th><th>订单</th><th>创建时间</th><th>使用时间</th></tr></thead>
+          <thead><tr><th>卡密</th><th>状态</th><th>绑定账号</th><th>订单</th><th>创建时间</th><th>锁定时间</th><th>操作</th></tr></thead>
           <tbody id="cards"></tbody>
         </table>
       </div>
@@ -341,9 +344,17 @@ function serveHCardAdmin(res) {
     async function loadCards() {
       try {
         const data = await api("/api/admin/h-cards");
-        document.getElementById("cards").innerHTML = data.cards.map(card =>
-          "<tr><td>" + escapeHtml(card.cardMask) + "</td><td>" + escapeHtml(card.status) + "</td><td>" + escapeHtml(card.orderId || "-") + "</td><td>" + escapeHtml(card.createdAt) + "</td><td>" + escapeHtml(card.usedAt || "-") + "</td></tr>"
-        ).join("") || '<tr><td colspan="5">暂无卡密</td></tr>';
+        document.getElementById("cards").innerHTML = data.cards.map(card => {
+          const actionHtml = [
+            card.status === "locked" || card.status === "reserved"
+              ? '<button type="button" data-card-action="unlock" data-card-id="' + escapeHtml(card.id) + '">解锁</button>'
+              : "",
+            card.status === "disabled"
+              ? '<button type="button" data-card-action="enable" data-card-id="' + escapeHtml(card.id) + '">启用</button>'
+              : '<button class="danger" type="button" data-card-action="disable" data-card-id="' + escapeHtml(card.id) + '">禁用</button>'
+          ].filter(Boolean).join("");
+          return '<tr><td>' + escapeHtml(card.cardMask) + '</td><td>' + escapeHtml(card.status) + '</td><td>' + escapeHtml(card.boundEmail || "-") + '</td><td>' + escapeHtml(card.orderId || "-") + '</td><td>' + escapeHtml(card.createdAt) + '</td><td>' + escapeHtml(card.boundAt || "-") + '</td><td><div class="row-actions">' + actionHtml + '</div></td></tr>';
+        }).join("") || '<tr><td colspan="7">暂无卡密</td></tr>';
         setStatus("卡密列表已刷新。");
       } catch (error) { setStatus(error.message, true); }
     }
@@ -357,6 +368,21 @@ function serveHCardAdmin(res) {
       } catch (error) { setStatus(error.message, true); }
     });
     document.getElementById("refresh").addEventListener("click", loadCards);
+    document.getElementById("cards").addEventListener("click", async (event) => {
+      const button = event.target.closest("[data-card-action]");
+      if (!button) return;
+      const action = button.dataset.cardAction;
+      const cardId = button.dataset.cardId;
+      button.disabled = true;
+      try {
+        await api("/api/admin/h-cards/" + encodeURIComponent(cardId) + "/" + action, { method: "POST", body: "{}" });
+        setStatus(action === "unlock" ? "卡密已解锁，可绑定新账号。" : action === "disable" ? "卡密已禁用。" : "卡密已启用。");
+        await loadCards();
+      } catch (error) {
+        setStatus(error.message, true);
+        button.disabled = false;
+      }
+    });
     if (token) loadCards();
   </script>
 </body>
@@ -542,6 +568,23 @@ const server = http.createServer(async (req, res) => {
         return;
       }
       const result = rechargeService.createHCards(body);
+      sendJson(res, result.status, result.ok ? { success: true, data: result.data } : { success: false, message: result.message });
+      return;
+    }
+
+    const hCardAction = url.pathname.match(/^\/api\/admin\/h-cards\/([^/]+)\/(unlock|disable|enable)$/);
+    if (req.method === "POST" && hCardAction) {
+      const body = await readJsonBody(req);
+      const auth = assertAdmin(req, url, body);
+      if (!auth.ok) {
+        sendJson(res, auth.status, { success: false, message: auth.message });
+        return;
+      }
+      const cardId = decodeURIComponent(hCardAction[1]);
+      const action = hCardAction[2];
+      const result = action === "unlock"
+        ? rechargeService.unlockHCard(cardId)
+        : rechargeService.setHCardDisabled(cardId, action === "disable", body.reason);
       sendJson(res, result.status, result.ok ? { success: true, data: result.data } : { success: false, message: result.message });
       return;
     }

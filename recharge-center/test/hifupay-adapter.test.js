@@ -100,6 +100,7 @@ test("hifupay adapter submits Plus PH tasks and normalizes polling status", asyn
   assert.equal(verified.ok, true);
   assert.equal(verified.data.provider, "h");
   assert.equal(verified.data.cardId, card.id);
+  assert.equal(new JsonStore(dataFile).getHCardByCode(card.code).status, "unused");
 
   const started = await hifupayAdapter.startRecharge({
     cardInfo: card.code,
@@ -113,7 +114,7 @@ test("hifupay adapter submits Plus PH tasks and normalizes polling status", asyn
   assert.equal(started.ok, true);
   assert.equal(started.data.taskId, "H-TASK-1");
   assert.equal(started.data.cardId, card.id);
-  assert.equal(new JsonStore(dataFile).getHCardByCode(card.code).status, "reserved");
+  assert.equal(new JsonStore(dataFile).getHCardByCode(card.code).status, "locked");
 
   const processing = await hifupayAdapter.queryTaskStatus({ taskId: "H-TASK-1" });
   assert.equal(processing.data.status, "processing");
@@ -125,4 +126,22 @@ test("hifupay adapter submits Plus PH tasks and normalizes polling status", asyn
   assert.equal(completed.data.autoCancelDone, true);
   assert.equal(new JsonStore(dataFile).completeHCard(card.id, "order_h_test"), true);
   assert.equal(new JsonStore(dataFile).getHCardByCode(card.code).status, "used");
+
+  const [failedCard] = new JsonStore(dataFile).createHCards({ count: 1, productId: 3 });
+  process.env.HIFUPAY_CARD_ID = "";
+  const failedStart = await hifupayAdapter.startRecharge({
+    cardInfo: failedCard.code,
+    orderId: "order_h_failed",
+    fullAuthData: {
+      user: { email: "failed@example.com" },
+      account: { id: "account_failed" },
+      accessToken: "token_failed"
+    }
+  });
+  assert.equal(failedStart.ok, false);
+  assert.equal(failedStart.status, 503);
+  const failedStoredCard = new JsonStore(dataFile).getHCardByCode(failedCard.code);
+  assert.equal(failedStoredCard.status, "locked");
+  assert.equal(failedStoredCard.boundEmail, "failed@example.com");
+  assert.equal(failedStoredCard.boundAccountId, "account_failed");
 });

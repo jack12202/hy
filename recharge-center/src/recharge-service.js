@@ -207,6 +207,26 @@ export const rechargeService = {
     return { ok: true, status: 200, data: { cards: store.listHCards(limit) } };
   },
 
+  unlockHCard(cardId) {
+    const result = store.unlockHCard(cardId);
+    return {
+      ok: result.ok,
+      status: result.ok ? 200 : result.status === "used" ? 409 : result.status === "disabled" ? 409 : 400,
+      data: result.ok ? { cardId: result.cardId, status: result.status } : undefined,
+      message: result.message
+    };
+  },
+
+  setHCardDisabled(cardId, disabled, reason = "") {
+    const result = store.setHCardDisabled(cardId, disabled, reason);
+    return {
+      ok: result.ok,
+      status: result.ok ? 200 : 404,
+      data: result.ok ? { cardId: result.cardId, status: result.status } : undefined,
+      message: result.message
+    };
+  },
+
   async verifyCard(cardInfo, provider) {
     if (!requiredString(cardInfo)) {
       return { ok: false, status: 400, message: "请先输入卡密。" };
@@ -317,6 +337,7 @@ export const rechargeService = {
       cardInfo: cardInfo.trim(),
       orderId: order.id,
       userEmail: secret.userEmail,
+      accountId: typeof secret.account?.id === "string" ? secret.account.id : "",
       userGptToken: secret.userGptToken,
       fullAuthData: secret.fullAuthData,
       providerSessionId: input.providerSessionId || "",
@@ -445,8 +466,6 @@ export const rechargeService = {
       if (selectedProvider === "h" && order.hCardId) {
         if (nextStatus === "success") {
           store.completeHCard(order.hCardId, order.id);
-        } else if (nextStatus === "failed" && taskData.paymentConfirmed !== true) {
-          store.releaseHCard(order.hCardId, order.id);
         }
       }
 

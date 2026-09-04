@@ -957,7 +957,7 @@ window._hmt = _hmt;
               <div class="field stage2-secret-field">
                 <label for="secretJson">粘贴充值密钥</label>
                 <textarea id="secretJson" placeholder="请把密钥页面的全部内容粘贴到这里"></textarea>
-                <small>请完整复制，系统会自动识别账号信息。</small>
+                <small>请完整复制，提交时自动绑定账号。</small>
               </div>
               <div class="btn-row">
                 <button class="secondary" type="button" onclick="goStep(1)">返回上一步</button>
@@ -1555,7 +1555,10 @@ window._hmt = _hmt;
         setTextIfPresent("confirmEmail", result.data.userEmail);
         setTextIfPresent("confirmCard", document.getElementById("cardInfo").value.trim());
         setTextIfPresent("confirmChannel", "自动通道");
-        setNotice("step2Notice", "账号信息识别成功", `已识别账号邮箱：${result.data.userEmail}，请确认这是你要充值的账号。`, "success");
+        const submitMessage = currentProvider === "h"
+          ? `已识别账号邮箱：${result.data.userEmail}，确认充值后将绑定此账号。`
+          : `已识别账号邮箱：${result.data.userEmail}，请确认这是你要充值的账号。`;
+        setNotice("step2Notice", "账号信息识别成功", submitMessage, "success");
         goStep(3);
       } catch (error) {
         setNotice("step2Notice", "密钥识别失败", error.message || "网络请求异常。", "error");

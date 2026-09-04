@@ -83,6 +83,23 @@ function tokenPayload(fullAuthData) {
   return typeof fullAuthData === "string" ? fullAuthData : JSON.stringify(fullAuthData || {});
 }
 
+function accountIdentity(fullAuthData, userEmail, accountId) {
+  let payload = fullAuthData;
+  if (typeof payload === "string") {
+    try {
+      payload = JSON.parse(payload);
+    } catch {
+      payload = {};
+    }
+  }
+  const user = payload?.user && typeof payload.user === "object" ? payload.user : {};
+  const account = payload?.account && typeof payload.account === "object" ? payload.account : {};
+  return {
+    email: userEmail || payload?.userEmail || user.email || "",
+    accountId: accountId || account.id || ""
+  };
+}
+
 async function login() {
   const key = sourceApiKey();
   if (!requiredString(key)) return { ok: false, status: 503, message: "h通道 API Key 未配置。" };
@@ -116,10 +133,15 @@ export const hifupayAdapter = {
     return { ok: data.success, status: data.success ? 200 : 400, data };
   },
 
-  async startRecharge({ cardInfo, fullAuthData, orderId }) {
+  async startRecharge({ cardInfo, fullAuthData, orderId, userEmail, accountId }) {
     const cardCode = extractCardCode(cardInfo);
     if (!cardCode || !requiredString(orderId)) {
       return { ok: false, status: 400, data: { provider: "h", providerLabel: "h", message: "缺少卡密或订单号。" } };
+    }
+
+    const reservation = hCardStore.reserveHCard(cardCode, orderId, accountIdentity(fullAuthData, userEmail, accountId));
+    if (!reservation.ok) {
+      return { ok: false, status: 409, data: { provider: "h", providerLabel: "h", message: reservation.message } };
     }
 
     const cardId = process.env.HIFUPAY_CARD_ID ?? config.hifupayCardId;
@@ -131,14 +153,8 @@ export const hifupayAdapter = {
       };
     }
 
-    const reservation = hCardStore.reserveHCard(cardCode, orderId);
-    if (!reservation.ok) {
-      return { ok: false, status: 409, data: { provider: "h", providerLabel: "h", message: reservation.message } };
-    }
-
     const session = await login();
     if (!session.ok) {
-      hCardStore.releaseHCard(reservation.cardId, orderId);
       return { ok: false, status: session.status || 502, data: { provider: "h", providerLabel: "h", message: session.message } };
     }
 
@@ -155,7 +171,6 @@ export const hifupayAdapter = {
       }
     });
     const data = normalizeStart(raw, reservation.cardId);
-    if (!data.success) hCardStore.releaseHCard(reservation.cardId, orderId);
     return { ok: data.success, status: raw.status, data };
   },
 

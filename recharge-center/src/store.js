@@ -25,6 +25,27 @@ function cardMask(cardCode) {
   return cardCode.length <= 8 ? `${cardCode.slice(0, 2)}****${cardCode.slice(-2)}` : `${cardCode.slice(0, 4)}****${cardCode.slice(-4)}`;
 }
 
+function normalizeEmail(value) {
+  return String(value || "").trim().toLowerCase();
+}
+
+function normalizeAccountId(value) {
+  return String(value || "").trim();
+}
+
+function hasAccountIdentity(identity = {}) {
+  return Boolean(normalizeEmail(identity.email) || normalizeAccountId(identity.accountId));
+}
+
+function cardIdentityMatches(card, identity = {}) {
+  const email = normalizeEmail(identity.email);
+  const accountId = normalizeAccountId(identity.accountId);
+  const checks = [];
+  if (card.boundEmail) checks.push(email && card.boundEmail === email);
+  if (card.boundAccountId) checks.push(accountId && card.boundAccountId === accountId);
+  return checks.length > 0 && checks.every(Boolean);
+}
+
 function generateCardCode() {
   return `HPLUS${crypto.randomBytes(16).toString("hex").toUpperCase()}`;
 }
@@ -191,6 +212,12 @@ export class JsonStore {
         cardMask: cardMask(code),
         status: "unused",
         orderId: "",
+        boundEmail: "",
+        boundAccountId: "",
+        boundAt: "",
+        lockReason: "",
+        disabledAt: "",
+        disabledReason: "",
         expiresAt,
         createdAt,
         updatedAt: createdAt
@@ -219,8 +246,14 @@ export class JsonStore {
         provider: card.provider,
         productId: card.productId,
         cardMask: card.cardMask,
-        status: card.status,
+        status: card.disabledAt ? "disabled" : card.status,
         orderId: card.orderId || "",
+        boundEmail: card.boundEmail || "",
+        boundAccountId: card.boundAccountId || "",
+        boundAt: card.boundAt || "",
+        lockReason: card.lockReason || "",
+        disabledAt: card.disabledAt || "",
+        disabledReason: card.disabledReason || "",
         expiresAt: card.expiresAt || "",
         createdAt: card.createdAt,
         usedAt: card.usedAt || ""
@@ -238,12 +271,14 @@ export class JsonStore {
     const card = this.getHCardByCode(cardCode);
     if (!card) return { ok: false, status: "not_found", message: "激活码不存在，请检查后重新输入。" };
 
+    if (card.disabledAt) return { ok: false, status: "disabled", message: "卡密已被后台禁用，请联系客服处理。" };
     if (card.status === "unused" && card.expiresAt && Date.parse(card.expiresAt) <= Date.now()) {
       this.updateHCard(card.id, { status: "expired" });
       return { ok: false, status: "expired", message: "激活码已过期，请联系人工处理。" };
     }
     if (card.status === "used") return { ok: false, status: "used", message: "卡密已使用，请勿重复提交。" };
     if (card.status === "reserved") return { ok: false, status: "reserved", message: "卡密正在处理中，请勿重复提交。" };
+    if (card.status === "locked") return { ok: false, status: "locked", message: "卡密已锁定，请勿重复提交。" };
     if (card.status !== "unused") return { ok: false, status: card.status, message: "当前激活码不可用。" };
 
     return {
@@ -255,20 +290,101 @@ export class JsonStore {
     };
   }
 
-  reserveHCard(cardCode, orderId) {
-    const result = this.verifyHCard(cardCode);
-    if (!result.ok) return result;
-    return this.updateHCard(result.cardId, { status: "reserved", orderId })
-      ? { ok: true, cardId: result.cardId, productId: result.productId }
-      : { ok: false, status: "storage_error", message: "卡密锁定失败，请稍后重试。" };
+  reserveHCard(cardCode, orderId, identity = {}) {
+    const normalizedCode = String(cardCode || "").trim().toUpperCase();
+    const normalizedOrderId = String(orderId || "").trim();
+    if (!normalizedCode || !normalizedOrderId) return { ok: false, status: "invalid", message: "缺少卡密或订单号。" };
+    if (!hasAccountIdentity(identity)) return { ok: false, status: "missing_account", message: "缺少账号信息，无法锁定卡密。" };
+
+    const state = this.read();
+    const card = state.hCards.find(item => item.codeHash === cardCodeHash(normalizedCode));
+    if (!card) return { ok: false, status: "not_found", message: "激活码不存在，请检查后重新输入。" };
+    if (card.disabledAt) return { ok: false, status: "disabled", message: "卡密已被后台禁用，请联系客服处理。" };
+    if (card.status === "unused" && card.expiresAt && Date.parse(card.expiresAt) <= Date.now()) {
+      card.status = "expired";
+      card.updatedAt = nowIso();
+      this.write(state);
+      return { ok: false, status: "expired", message: "激活码已过期，请联系人工处理。" };
+    }
+    if (card.status === "used") return { ok: false, status: "used", message: "卡密已使用，请勿重复提交。" };
+    if (card.status === "reserved") {
+      return { ok: false, status: "locked", message: "卡密已锁定，请勿重复提交。" };
+    }
+    if (card.status === "locked") {
+      if (card.orderId) return { ok: false, status: "locked", message: "卡密已锁定，请勿重复提交。" };
+      if (!cardIdentityMatches(card, identity)) {
+        return { ok: false, status: "account_mismatch", message: "卡密已绑定其他账号，请联系客服处理。" };
+      }
+    }
+    if (card.status !== "unused" && card.status !== "locked" && card.status !== "reserved") {
+      return { ok: false, status: card.status, message: "当前激活码不可用。" };
+    }
+
+    const timestamp = nowIso();
+    if (card.status === "unused") {
+      Object.assign(card, {
+        status: "locked",
+        boundEmail: normalizeEmail(identity.email),
+        boundAccountId: normalizeAccountId(identity.accountId),
+        boundAt: card.boundAt || timestamp
+      });
+    }
+    Object.assign(card, {
+      orderId: card.orderId || normalizedOrderId,
+      lockReason: "recharge_submitted",
+      updatedAt: timestamp
+    });
+    this.write(state);
+    return { ok: true, cardId: card.id, productId: card.productId };
   }
 
   completeHCard(cardId, orderId) {
     return this.transitionHCard(cardId, orderId, "used", { usedAt: nowIso() });
   }
 
-  releaseHCard(cardId, orderId) {
-    return this.transitionHCard(cardId, orderId, "unused", { usedAt: "" });
+  unlockHCard(cardId) {
+    const state = this.read();
+    const card = state.hCards.find(item => item.id === cardId);
+    if (!card) return { ok: false, status: "not_found", message: "卡密不存在。" };
+    if (card.disabledAt) return { ok: false, status: "disabled", message: "请先启用卡密，再执行解锁。" };
+    if (card.status === "used") return { ok: false, status: "used", message: "充值成功的卡密不能解锁。" };
+    if (card.status !== "locked" && card.status !== "reserved") {
+      return { ok: false, status: card.status, message: "当前卡密不需要解锁。" };
+    }
+    const order = card.orderId ? this.getOrder(card.orderId) : null;
+    if (order && order.status !== "failed") {
+      return { ok: false, status: "processing", message: "关联订单尚未确认失败，暂不能解锁。" };
+    }
+
+    Object.assign(card, {
+      status: "unused",
+      orderId: "",
+      boundEmail: "",
+      boundAccountId: "",
+      boundAt: "",
+      lockReason: "",
+      usedAt: "",
+      updatedAt: nowIso()
+    });
+    this.write(state);
+    return { ok: true, status: "unused", cardId: card.id };
+  }
+
+  setHCardDisabled(cardId, disabled, reason = "") {
+    const state = this.read();
+    const card = state.hCards.find(item => item.id === cardId);
+    if (!card) return { ok: false, status: "not_found", message: "卡密不存在。" };
+    if (disabled) {
+      Object.assign(card, {
+        disabledAt: card.disabledAt || nowIso(),
+        disabledReason: String(reason || "管理员禁用").trim(),
+        updatedAt: nowIso()
+      });
+    } else {
+      Object.assign(card, { disabledAt: "", disabledReason: "", updatedAt: nowIso() });
+    }
+    this.write(state);
+    return { ok: true, status: card.disabledAt ? "disabled" : card.status, cardId: card.id };
   }
 
   updateHCard(cardId, patch) {
@@ -283,7 +399,7 @@ export class JsonStore {
   transitionHCard(cardId, orderId, status, extra = {}) {
     const state = this.read();
     const card = state.hCards.find(item => item.id === cardId);
-    if (!card || card.status !== "reserved" || card.orderId !== orderId) return false;
+    if (!card || !["locked", "reserved"].includes(card.status) || card.orderId !== orderId) return false;
     Object.assign(card, { ...extra, status, orderId: status === "unused" ? "" : orderId, updatedAt: nowIso() });
     this.write(state);
     return true;

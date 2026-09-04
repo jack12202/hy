@@ -47,6 +47,7 @@
   - 三哥：`sange`
   - 阿妍：`ayan`
   - 廖（用户端显示 `l`）：`czgpt`
+  - 嗨付菲律宾 Plus（用户端显示 `h`）：`h`
 - 站外充值
   - 三哥：`sange_external`
   - 阿妍：`ayan_external`
@@ -60,7 +61,7 @@
 
 - `DEFAULT_PROVIDER`
   - 默认值：`czgpt`
-  - 可选值：`sange` / `ayan` / `czgpt` / `sange_external` / `ayan_external` / `czgpt_external` / `dnscon` / `9977ai`
+  - 可选值：`sange` / `ayan` / `czgpt` / `h` / `sange_external` / `ayan_external` / `czgpt_external` / `dnscon` / `9977ai`
 - `ADMIN_TOKEN`
   - 手机后台切换源头时输入的管理密码
 - `AYAN_BASE_URL`
@@ -71,6 +72,16 @@
   - 如果三哥接口需要鉴权，在这里配置
 - `RESELLER_BASE_URL`
   - l 通道的分销商 API 地址，默认值：`https://666ai.vip`
+- `HIFUPAY_BASE_URL`
+  - 嗨付 API 地址，默认值：`https://sdk.hifupay.com`
+- `HIFUPAY_API_KEY`
+  - 嗨付 API Key，只放在 VPS 环境变量，不要提交到仓库
+- `HIFUPAY_CARD_ID`
+  - 当前固定使用的嗨付卡片 ID；暂不自动选卡
+- `HIFUPAY_CARD_VERIFY_URL`
+  - 你自己的卡密验证接口；返回 `success: true` 或 `valid: true` 才允许提交嗨付
+- `HIFUPAY_PLAN` / `HIFUPAY_REGION` / `HIFUPAY_PROXY_REGION` / `HIFUPAY_ENGINE`
+  - 当前默认值分别为 `plus` / `PH` / `PH3` / `oaics`
 
 手机切换入口：
 

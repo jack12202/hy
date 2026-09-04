@@ -11,6 +11,7 @@ import {
 } from "./redirect-adapters.js";
 import { sangeAdapter } from "./sange-adapter.js";
 import { xiaoyuAdapter } from "./xiaoyu-adapter.js";
+import { hifupayAdapter } from "./hifupay-adapter.js";
 
 export const providerAdapters = {
   sange: sangeAdapter,
@@ -18,6 +19,7 @@ export const providerAdapters = {
   j: ajianAdapter,
   czgpt: czgptAdapter,
   xiaoyu: xiaoyuAdapter,
+  h: hifupayAdapter,
   sange_external: sangeExternalAdapter,
   ayan_external: ayanExternalAdapter,
   czgpt_external: czgptExternalAdapter,

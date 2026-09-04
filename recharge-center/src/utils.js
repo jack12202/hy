@@ -54,6 +54,7 @@ export function normalizeProvider(value, fallback = "sange") {
     provider === "ajian" ||
     provider === "czgpt" ||
     provider === "xiaoyu" ||
+    provider === "h" ||
     provider === "sange_external" ||
     provider === "ayan_external" ||
     provider === "czgpt_external" ||

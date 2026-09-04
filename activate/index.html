@@ -75,6 +75,12 @@
       --source-cue-text: #ffffff;
       --source-soft: #ecfeff;
     }
+    body.provider-h {
+      --source-accent: #4f46e5;
+      --source-accent-2: #06b6d4;
+      --source-cue-text: #ffffff;
+      --source-soft: #eef2ff;
+    }
     .wrap { width: min(980px, calc(100% - 28px)); margin: 14px auto 36px; }
     .topbar {
       display: flex;
@@ -175,6 +181,7 @@
     body.provider-sange .provider-cue::before { content: "S"; }
     body.provider-czgpt .provider-cue::before { content: "l"; }
     body.provider-j .provider-cue::before { content: "j"; }
+    body.provider-h .provider-cue::before { content: "h"; }
     body.provider-sange .provider-cue {
       border-radius: 9px;
       transform: translateY(-8px) rotate(-2deg);
@@ -1117,7 +1124,7 @@ window._hmt = _hmt;
 
     function normalizeProvider(value) {
       const provider = typeof value === "string" ? value.trim().toLowerCase() : "";
-      if (provider === "sange" || provider === "ayan" || provider === "j" || provider === "ajian" || provider === "czgpt" || provider === "xiaoyu") return provider === "ajian" ? "j" : provider;
+      if (provider === "sange" || provider === "ayan" || provider === "j" || provider === "ajian" || provider === "czgpt" || provider === "xiaoyu" || provider === "h") return provider === "ajian" ? "j" : provider;
       return "";
     }
 
@@ -1143,6 +1150,7 @@ window._hmt = _hmt;
       document.body.classList.toggle("provider-sange", normalized === "sange");
       document.body.classList.toggle("provider-czgpt", normalized === "czgpt");
       document.body.classList.toggle("provider-j", normalized === "j");
+      document.body.classList.toggle("provider-h", normalized === "h");
     }
 
     function setCurrentProvider(provider, options = {}) {

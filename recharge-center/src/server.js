@@ -145,6 +145,7 @@ function serveProviderAdmin(res) {
       </div>
     </div>
     <div class="status" id="statusBox">输入管理密码后，点击源头即可切换。</div>
+    <div class="hint"><a href="/admin/cards">打开 h 通道卡密生成后台</a></div>
     <div class="hint" id="tokenHint"></div>
   </main>
   <script>
@@ -234,6 +235,136 @@ function serveProviderAdmin(res) {
   res.writeHead(200, {
     "Content-Type": "text/html; charset=utf-8",
     "Cache-Control": "no-store"
+  });
+  res.end(html);
+}
+
+function serveHCardAdmin(res) {
+  const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>h 通道卡密｜GPTC.cc</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; padding: 20px; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #132033; background: #f4f7fb; }
+    main { width: min(960px, 100%); margin: 0 auto; }
+    section { background: #fff; border: 1px solid #dbe4ee; border-radius: 14px; box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08); padding: 22px; margin-bottom: 16px; }
+    h1, h2 { margin: 0 0 8px; }
+    h1 { font-size: 26px; }
+    h2 { font-size: 18px; }
+    p, .hint { color: #64748b; line-height: 1.6; }
+    .form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end; margin-top: 18px; }
+    label { display: grid; gap: 8px; font-weight: 800; }
+    input { width: 100%; min-height: 44px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 0 12px; font: inherit; }
+    button { min-height: 44px; border: 0; border-radius: 10px; padding: 0 18px; color: #fff; background: #0f766e; font: inherit; font-weight: 900; cursor: pointer; }
+    button.secondary { color: #0f766e; background: #ecfdf5; border: 1px solid #99f6e4; }
+    .status { margin-top: 16px; padding: 12px; border-radius: 10px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; line-height: 1.6; white-space: pre-wrap; }
+    .status.error { background: #fff1f2; border-color: #fda4af; color: #9f1239; }
+    .generated { display: grid; gap: 10px; margin-top: 14px; }
+    .card { padding: 12px; border: 1px solid #dbe4ee; border-radius: 10px; background: #f8fafc; overflow-wrap: anywhere; }
+    .card code { display: block; color: #0f172a; font-weight: 900; }
+    .card a { display: block; margin-top: 5px; color: #2563eb; font-size: 13px; }
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
+    th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+    th { color: #475569; }
+    .hint { margin: 10px 0 0; font-size: 13px; }
+    @media (max-width: 640px) { .form { grid-template-columns: 1fr; } button { width: 100%; } section { padding: 16px; } }
+  </style>
+</head>
+<body>
+  <main>
+    <section>
+      <h1>h 通道卡密</h1>
+      <p>只在这里生成 h 通道卡密。卡密只展示一次，数据库只保存哈希；链接和卡密都要按密码保管。</p>
+      <label>
+        管理密码
+        <input id="adminToken" type="password" autocomplete="current-password" placeholder="请输入 ADMIN_TOKEN">
+      </label>
+      <div class="form">
+        <label>生成数量<input id="count" type="number" min="1" max="100" value="10"></label>
+        <label>有效天数<input id="expiresInDays" type="number" min="0" value="0" placeholder="0 表示永久"></label>
+        <button id="generate" type="button">生成卡密</button>
+      </div>
+      <div class="status" id="statusBox">输入管理密码后，可以生成或查看卡密。</div>
+      <div class="generated" id="generated"></div>
+    </section>
+    <section>
+      <h2>最近卡密</h2>
+      <p class="hint">这里只显示掩码和状态，不会再次显示完整卡密。</p>
+      <button class="secondary" id="refresh" type="button">刷新列表</button>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>卡密</th><th>状态</th><th>订单</th><th>创建时间</th><th>使用时间</th></tr></thead>
+          <tbody id="cards"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script>
+    const tokenInput = document.getElementById("adminToken");
+    const statusBox = document.getElementById("statusBox");
+    const generated = document.getElementById("generated");
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const tokenFromHash = hashParams.get("token") || "";
+    const tokenFromQuery = params.get("token") || "";
+    const token = tokenFromHash || tokenFromQuery || localStorage.getItem("gptcProviderAdminToken") || "";
+    tokenInput.value = token;
+    if (tokenFromHash || tokenFromQuery) {
+      localStorage.setItem("gptcProviderAdminToken", token);
+      if (tokenFromQuery) window.history.replaceState(null, "", window.location.pathname + (window.location.hash || ""));
+    }
+
+    function setStatus(message, error = false) {
+      statusBox.textContent = message;
+      statusBox.classList.toggle("error", error);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>\"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;", "'": "&#39;" }[character]));
+    }
+
+    async function api(path, options = {}) {
+      const currentToken = tokenInput.value.trim();
+      if (!currentToken) throw new Error("请先输入管理密码。");
+      localStorage.setItem("gptcProviderAdminToken", currentToken);
+      const response = await fetch(path, { ...options, headers: { "Content-Type": "application/json", "X-Admin-Token": currentToken, ...(options.headers || {}) } });
+      const data = await response.json();
+      if (!data.success) throw new Error(data.message || "操作失败。");
+      return data.data;
+    }
+
+    async function loadCards() {
+      try {
+        const data = await api("/api/admin/h-cards");
+        document.getElementById("cards").innerHTML = data.cards.map(card =>
+          "<tr><td>" + escapeHtml(card.cardMask) + "</td><td>" + escapeHtml(card.status) + "</td><td>" + escapeHtml(card.orderId || "-") + "</td><td>" + escapeHtml(card.createdAt) + "</td><td>" + escapeHtml(card.usedAt || "-") + "</td></tr>"
+        ).join("") || '<tr><td colspan="5">暂无卡密</td></tr>';
+        setStatus("卡密列表已刷新。");
+      } catch (error) { setStatus(error.message, true); }
+    }
+
+    document.getElementById("generate").addEventListener("click", async () => {
+      try {
+        const data = await api("/api/admin/h-cards", { method: "POST", body: JSON.stringify({ count: Number(document.getElementById("count").value), expiresInDays: Number(document.getElementById("expiresInDays").value), productId: 3 }) });
+        generated.innerHTML = data.cards.map(card => "<div class=\"card\"><code>" + escapeHtml(card.code) + "</code><a href=\"" + escapeHtml(card.link) + "\" target=\"_blank\" rel=\"noreferrer\">" + escapeHtml(card.link) + "</a></div>").join("");
+        setStatus("已生成 " + data.cards.length + " 张卡密。请立即复制并保存，刷新后不会再次显示完整卡密。");
+        loadCards();
+      } catch (error) { setStatus(error.message, true); }
+    });
+    document.getElementById("refresh").addEventListener("click", loadCards);
+    if (token) loadCards();
+  </script>
+</body>
+</html>`;
+  res.writeHead(200, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store",
+    "Referrer-Policy": "no-referrer"
   });
   res.end(html);
 }
@@ -344,6 +475,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === "GET" && (url.pathname === "/admin/cards" || url.pathname === "/admin/cards/")) {
+      serveHCardAdmin(res);
+      return;
+    }
+
     if (req.method === "GET" && url.pathname === "/admin/provider/switch") {
       const auth = assertAdmin(req, url);
       if (!auth.ok) {
@@ -384,6 +520,29 @@ const server = http.createServer(async (req, res) => {
       }
       const result = rechargeService.updateDefaultProvider(body.provider, "admin");
       sendJson(res, result.status, result.ok ? { success: true, data: adminProviderSettings(result.data) } : { success: false, message: result.message });
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/admin/h-cards") {
+      const auth = assertAdmin(req, url);
+      if (!auth.ok) {
+        sendJson(res, auth.status, { success: false, message: auth.message });
+        return;
+      }
+      const result = rechargeService.listHCards(url.searchParams.get("limit") || 100);
+      sendJson(res, result.status, { success: true, data: result.data });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/admin/h-cards") {
+      const body = await readJsonBody(req);
+      const auth = assertAdmin(req, url, body);
+      if (!auth.ok) {
+        sendJson(res, auth.status, { success: false, message: auth.message });
+        return;
+      }
+      const result = rechargeService.createHCards(body);
+      sendJson(res, result.status, result.ok ? { success: true, data: result.data } : { success: false, message: result.message });
       return;
     }
 

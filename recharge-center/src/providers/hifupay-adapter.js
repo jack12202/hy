@@ -1,4 +1,5 @@
 import { config } from "../config.js";
+import { JsonStore } from "../store.js";
 import { extractCardCode, requiredString } from "../utils.js";
 import { requestJson } from "./http-json.js";
 
@@ -7,6 +8,7 @@ function sourceApiKey() {
 }
 
 let authorizedApiKey = "";
+const hCardStore = new JsonStore();
 
 function apiHeaders(apiKey) {
   return {
@@ -20,25 +22,22 @@ function errorMessage(raw, fallback) {
   return body.error || body.message || fallback;
 }
 
-function cardVerifyUrl() {
-  return process.env.HIFUPAY_CARD_VERIFY_URL ?? config.hifupayCardVerifyUrl;
-}
-
-function normalizeVerify(raw, cardCode) {
-  const body = raw?.data && typeof raw.data === "object" ? raw.data : {};
-  const success = raw.ok && (body.success === true || body.valid === true) && body.used !== true;
+function normalizeVerify(result, cardCode) {
+  const success = result.ok === true;
   return {
     success,
     provider: "h",
     providerLabel: "h",
     cardCode,
-    productId: config.hifupayProductId,
-    message: success ? "" : errorMessage(raw, body.used === true ? "卡密已使用" : "卡密验证失败，请检查后重试。"),
-    raw: body
+    productId: result.productId || config.hifupayProductId,
+    cardId: result.cardId || "",
+    expiresAt: result.expiresAt || "",
+    status: result.status || "",
+    message: success ? "" : result.message || "卡密验证失败，请检查后重试。"
   };
 }
 
-function normalizeStart(raw) {
+function normalizeStart(raw, cardId) {
   const body = raw?.data && typeof raw.data === "object" ? raw.data : {};
   const taskId = body.taskId || body.task_id || "";
   const success = raw.ok && Boolean(taskId) && body.success !== false;
@@ -47,6 +46,7 @@ function normalizeStart(raw) {
     provider: "h",
     providerLabel: "h",
     taskId,
+    cardId,
     status: success ? "processing" : "failed",
     message: body.message || errorMessage(raw, success ? "充值任务已提交。" : "充值提交失败。"),
     raw: body
@@ -112,28 +112,14 @@ export const hifupayAdapter = {
       return { ok: false, status: 400, data: { provider: "h", providerLabel: "h", message: "请先输入卡密。" } };
     }
 
-    const endpoint = cardVerifyUrl();
-    if (!requiredString(endpoint)) {
-      return {
-        ok: false,
-        status: 503,
-        data: { provider: "h", providerLabel: "h", message: "h通道尚未配置自有卡密验证服务。" }
-      };
-    }
-
-    const raw = await requestJson(endpoint, "", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      payload: { cardInfo: cardCode, provider: "h" }
-    });
-    const data = normalizeVerify(raw, cardCode);
-    return { ok: data.success, status: raw.status, data };
+    const data = normalizeVerify(hCardStore.verifyHCard(cardCode), cardCode);
+    return { ok: data.success, status: data.success ? 200 : 400, data };
   },
 
-  async startRecharge({ fullAuthData }) {
-    const session = await login();
-    if (!session.ok) {
-      return { ok: false, status: session.status || 502, data: { provider: "h", providerLabel: "h", message: session.message } };
+  async startRecharge({ cardInfo, fullAuthData, orderId }) {
+    const cardCode = extractCardCode(cardInfo);
+    if (!cardCode || !requiredString(orderId)) {
+      return { ok: false, status: 400, data: { provider: "h", providerLabel: "h", message: "缺少卡密或订单号。" } };
     }
 
     const cardId = process.env.HIFUPAY_CARD_ID ?? config.hifupayCardId;
@@ -143,6 +129,17 @@ export const hifupayAdapter = {
         status: 503,
         data: { provider: "h", providerLabel: "h", message: "h通道卡片 ID 未配置，当前版本暂不自动选卡。" }
       };
+    }
+
+    const reservation = hCardStore.reserveHCard(cardCode, orderId);
+    if (!reservation.ok) {
+      return { ok: false, status: 409, data: { provider: "h", providerLabel: "h", message: reservation.message } };
+    }
+
+    const session = await login();
+    if (!session.ok) {
+      hCardStore.releaseHCard(reservation.cardId, orderId);
+      return { ok: false, status: session.status || 502, data: { provider: "h", providerLabel: "h", message: session.message } };
     }
 
     const raw = await requestJson(config.hifupayBaseUrl, "/api/start", {
@@ -157,7 +154,8 @@ export const hifupayAdapter = {
         hfpCardId: cardId
       }
     });
-    const data = normalizeStart(raw);
+    const data = normalizeStart(raw, reservation.cardId);
+    if (!data.success) hCardStore.releaseHCard(reservation.cardId, orderId);
     return { ok: data.success, status: raw.status, data };
   },
 

@@ -77,9 +77,7 @@
 - `HIFUPAY_API_KEY`
   - 嗨付 API Key，只放在 VPS 环境变量，不要提交到仓库
 - `HIFUPAY_CARD_ID`
-  - 当前固定使用的嗨付卡片 ID；暂不自动选卡
-- `HIFUPAY_CARD_VERIFY_URL`
-  - 你自己的卡密验证接口；返回 `success: true` 或 `valid: true` 才允许提交嗨付
+  - 当前固定使用的嗨付菲律宾 Plus 卡片 ID，默认值为 `7172`
 - `HIFUPAY_PLAN` / `HIFUPAY_REGION` / `HIFUPAY_PROXY_REGION` / `HIFUPAY_ENGINE`
   - 当前默认值分别为 `plus` / `PH` / `PH3` / `oaics`
 
@@ -87,11 +85,17 @@
 
 - `https://gptc.cc/admin/provider`
 
+h 通道卡密生成后台：
+
+- `https://gptc.cc/admin/cards`
+
 手机私密后台链接：
 
 - `https://gptc.cc/admin/provider#token=你的ADMIN_TOKEN`
 
 打开后不用输入账号密码，先选择“站内充值”或“站外充值”，再点对应源头即可切换。站内充值留在 GPTC 完成；站外充值会在用户访问激活页时自动跳到所选源头。推荐使用 `#token=`，这样 token 不会发送到服务器日志里。
+
+打开 `/admin/cards#token=你的ADMIN_TOKEN` 后，可一次生成 1–100 张 h 通道卡密。完整卡密只在生成结果中展示一次，后台列表只显示掩码；h 卡密验证、锁定和成功核销均由后端完成。
 
 手机一键切换链接（旧方式，会把 token 放进请求 URL，不建议长期保存）：
 
@@ -106,4 +110,4 @@
 
 这些链接不需要账号密码，但 `ADMIN_TOKEN` 必须足够长、不要发给别人。
 
-上线时要确认 Nginx / OpenResty 已把 `/api/recharge/*` 和 `/admin/provider` 转发到 `recharge-center` 后端服务。
+上线时要确认 Nginx / OpenResty 已把 `/api/recharge/*`、`/api/admin/*`、`/admin/provider` 和 `/admin/cards` 转发到 `recharge-center` 后端服务。

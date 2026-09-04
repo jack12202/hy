@@ -194,6 +194,19 @@ export const rechargeService = {
     };
   },
 
+  createHCards(input = {}) {
+    const cards = store.createHCards({
+      count: input.count,
+      productId: input.productId || config.hifupayProductId,
+      expiresInDays: input.expiresInDays
+    });
+    return { ok: true, status: 200, data: { cards } };
+  },
+
+  listHCards(limit = 100) {
+    return { ok: true, status: 200, data: { cards: store.listHCards(limit) } };
+  },
+
   async verifyCard(cardInfo, provider) {
     if (!requiredString(cardInfo)) {
       return { ok: false, status: 400, message: "请先输入卡密。" };
@@ -302,6 +315,7 @@ export const rechargeService = {
 
     const upstreamPayload = {
       cardInfo: cardInfo.trim(),
+      orderId: order.id,
       userEmail: secret.userEmail,
       userGptToken: secret.userGptToken,
       fullAuthData: secret.fullAuthData,
@@ -331,6 +345,7 @@ export const rechargeService = {
 
     store.updateOrder(order.id, {
       upstreamTaskId,
+      ...(selectedProvider === "h" ? { hCardId: upstream.data?.cardId || "" } : {}),
       status,
       message
     });
@@ -427,6 +442,14 @@ export const rechargeService = {
     const message = taskData.message || "";
 
     if (order) {
+      if (selectedProvider === "h" && order.hCardId) {
+        if (nextStatus === "success") {
+          store.completeHCard(order.hCardId, order.id);
+        } else if (nextStatus === "failed" && taskData.paymentConfirmed !== true) {
+          store.releaseHCard(order.hCardId, order.id);
+        }
+      }
+
       store.updateOrder(order.id, {
         status: nextStatus,
         message

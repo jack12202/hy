@@ -1,6 +1,9 @@
 import assert from "node:assert/strict";
+import fs from "node:fs";
 import http from "node:http";
 import test from "node:test";
+import os from "node:os";
+import path from "node:path";
 
 function readBody(req) {
   return new Promise((resolve, reject) => {
@@ -27,13 +30,6 @@ test("hifupay adapter submits Plus PH tasks and normalizes polling status", asyn
       return;
     }
 
-    if (req.method === "POST" && req.url === "/verify") {
-      const body = JSON.parse(await readBody(req));
-      assert.deepEqual(body, { cardInfo: "H-TEST-CARD", provider: "h" });
-      sendJson(res, 200, { success: true, valid: true, used: false });
-      return;
-    }
-
     if (req.method === "POST" && req.url === "/api/start") {
       assert.equal(req.headers["x-api-key"], "hifupay-session-key");
       const body = JSON.parse(await readBody(req));
@@ -41,7 +37,7 @@ test("hifupay adapter submits Plus PH tasks and normalizes polling status", asyn
       assert.equal(body.region, "PH");
       assert.equal(body.proxyRegion, "PH3");
       assert.equal(body.engine, "oaics");
-      assert.equal(body.hfpCardId, "card_test");
+      assert.equal(body.hfpCardId, "7172");
       assert.equal(JSON.parse(body.token).accessToken, "token_test");
       sendJson(res, 200, { taskId: "H-TASK-1" });
       return;
@@ -72,14 +68,14 @@ test("hifupay adapter submits Plus PH tasks and normalizes polling status", asyn
     baseUrl: process.env.HIFUPAY_BASE_URL,
     apiKey: process.env.HIFUPAY_API_KEY,
     cardId: process.env.HIFUPAY_CARD_ID,
-    verifyUrl: process.env.HIFUPAY_CARD_VERIFY_URL
+    dataFile: process.env.DATA_FILE
   };
   t.after(() => {
     for (const [key, value] of Object.entries({
       HIFUPAY_BASE_URL: previous.baseUrl,
       HIFUPAY_API_KEY: previous.apiKey,
       HIFUPAY_CARD_ID: previous.cardId,
-      HIFUPAY_CARD_VERIFY_URL: previous.verifyUrl
+      DATA_FILE: previous.dataFile
     })) {
       if (value === undefined) delete process.env[key];
       else process.env[key] = value;
@@ -89,15 +85,25 @@ test("hifupay adapter submits Plus PH tasks and normalizes polling status", asyn
   const address = upstream.address();
   process.env.HIFUPAY_BASE_URL = `http://127.0.0.1:${address.port}`;
   process.env.HIFUPAY_API_KEY = "hifupay-test-key";
-  process.env.HIFUPAY_CARD_ID = "card_test";
-  process.env.HIFUPAY_CARD_VERIFY_URL = `http://127.0.0.1:${address.port}/verify`;
+  process.env.HIFUPAY_CARD_ID = "7172";
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "gptc-hifupay-test-"));
+  const dataFile = path.join(tempDir, "orders.json");
+  process.env.DATA_FILE = dataFile;
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
 
   const { hifupayAdapter } = await import(`../src/providers/hifupay-adapter.js?test=${Date.now()}`);
-  const verified = await hifupayAdapter.verifyCard({ cardInfo: "H-TEST-CARD" });
+  const { JsonStore } = await import("../src/store.js");
+  const store = new JsonStore(dataFile);
+  const [card] = store.createHCards({ count: 1, productId: 3 });
+
+  const verified = await hifupayAdapter.verifyCard({ cardInfo: card.code });
   assert.equal(verified.ok, true);
   assert.equal(verified.data.provider, "h");
+  assert.equal(verified.data.cardId, card.id);
 
   const started = await hifupayAdapter.startRecharge({
+    cardInfo: card.code,
+    orderId: "order_h_test",
     fullAuthData: {
       user: { email: "test@example.com" },
       account: { id: "account_test" },
@@ -106,6 +112,8 @@ test("hifupay adapter submits Plus PH tasks and normalizes polling status", asyn
   });
   assert.equal(started.ok, true);
   assert.equal(started.data.taskId, "H-TASK-1");
+  assert.equal(started.data.cardId, card.id);
+  assert.equal(new JsonStore(dataFile).getHCardByCode(card.code).status, "reserved");
 
   const processing = await hifupayAdapter.queryTaskStatus({ taskId: "H-TASK-1" });
   assert.equal(processing.data.status, "processing");
@@ -115,4 +123,6 @@ test("hifupay adapter submits Plus PH tasks and normalizes polling status", asyn
   assert.equal(completed.data.status, "success");
   assert.equal(completed.data.account, "test@example.com");
   assert.equal(completed.data.autoCancelDone, true);
+  assert.equal(new JsonStore(dataFile).completeHCard(card.id, "order_h_test"), true);
+  assert.equal(new JsonStore(dataFile).getHCardByCode(card.code).status, "used");
 });

@@ -17,11 +17,24 @@ function makeId(prefix) {
   return `${prefix}_${crypto.randomUUID()}`;
 }
 
+function cardCodeHash(cardCode) {
+  return crypto.createHash("sha256").update(cardCode).digest("hex");
+}
+
+function cardMask(cardCode) {
+  return cardCode.length <= 8 ? `${cardCode.slice(0, 2)}****${cardCode.slice(-2)}` : `${cardCode.slice(0, 4)}****${cardCode.slice(-4)}`;
+}
+
+function generateCardCode() {
+  return `HPLUS${crypto.randomBytes(16).toString("hex").toUpperCase()}`;
+}
+
 function createInitialState() {
   return {
     orders: [],
     rechargeSessions: [],
     rechargeLogs: [],
+    hCards: [],
     settings: {
       defaultProvider: config.defaultProvider,
       providerConfigVersion: PROVIDER_CONFIG_VERSION,
@@ -52,6 +65,7 @@ function normalizeState(state) {
     orders: Array.isArray(state?.orders) ? state.orders : [],
     rechargeSessions: Array.isArray(state?.rechargeSessions) ? state.rechargeSessions : [],
     rechargeLogs: Array.isArray(state?.rechargeLogs) ? state.rechargeLogs : [],
+    hCards: Array.isArray(state?.hCards) ? state.hCards : [],
     settings
   };
 }
@@ -85,6 +99,7 @@ export class JsonStore {
       productId: input.productId ?? config.defaultProductId,
       status: input.status || "created",
       upstreamTaskId: input.upstreamTaskId || "",
+      hCardId: input.hCardId || "",
       message: input.message || "",
       overwriteRecharge: Boolean(input.overwriteRecharge),
       createdAt: nowIso(),
@@ -156,5 +171,121 @@ export class JsonStore {
     state.rechargeLogs.push(log);
     this.write(state);
     return log;
+  }
+
+  createHCards({ count = 1, productId = 3, expiresInDays = 0 } = {}) {
+    const safeCount = Math.min(Math.max(Number(count) || 1, 1), 100);
+    const days = Math.max(Number(expiresInDays) || 0, 0);
+    const createdAt = nowIso();
+    const expiresAt = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString() : "";
+    const state = this.read();
+    const result = [];
+
+    for (let index = 0; index < safeCount; index += 1) {
+      const code = generateCardCode();
+      const card = {
+        id: makeId("hcard"),
+        provider: "h",
+        productId: Number(productId) || 3,
+        codeHash: cardCodeHash(code),
+        cardMask: cardMask(code),
+        status: "unused",
+        orderId: "",
+        expiresAt,
+        createdAt,
+        updatedAt: createdAt
+      };
+      state.hCards.push(card);
+      result.push({
+        id: card.id,
+        code,
+        cardMask: card.cardMask,
+        status: card.status,
+        expiresAt: card.expiresAt,
+        link: `https://www.gptc.cc/activate/?provider=h&card=${encodeURIComponent(code)}`
+      });
+    }
+
+    this.write(state);
+    return result;
+  }
+
+  listHCards(limit = 100) {
+    return this.read().hCards
+      .slice(-Math.min(Math.max(Number(limit) || 100, 1), 500))
+      .reverse()
+      .map(card => ({
+        id: card.id,
+        provider: card.provider,
+        productId: card.productId,
+        cardMask: card.cardMask,
+        status: card.status,
+        orderId: card.orderId || "",
+        expiresAt: card.expiresAt || "",
+        createdAt: card.createdAt,
+        usedAt: card.usedAt || ""
+      }));
+  }
+
+  getHCardByCode(cardCode) {
+    const normalized = String(cardCode || "").trim().toUpperCase();
+    if (!normalized) return null;
+    const state = this.read();
+    return state.hCards.find(card => card.codeHash === cardCodeHash(normalized)) || null;
+  }
+
+  verifyHCard(cardCode) {
+    const card = this.getHCardByCode(cardCode);
+    if (!card) return { ok: false, status: "not_found", message: "激活码不存在，请检查后重新输入。" };
+
+    if (card.status === "unused" && card.expiresAt && Date.parse(card.expiresAt) <= Date.now()) {
+      this.updateHCard(card.id, { status: "expired" });
+      return { ok: false, status: "expired", message: "激活码已过期，请联系人工处理。" };
+    }
+    if (card.status === "used") return { ok: false, status: "used", message: "卡密已使用，请勿重复提交。" };
+    if (card.status === "reserved") return { ok: false, status: "reserved", message: "卡密正在处理中，请勿重复提交。" };
+    if (card.status !== "unused") return { ok: false, status: card.status, message: "当前激活码不可用。" };
+
+    return {
+      ok: true,
+      status: card.status,
+      cardId: card.id,
+      productId: card.productId,
+      expiresAt: card.expiresAt || ""
+    };
+  }
+
+  reserveHCard(cardCode, orderId) {
+    const result = this.verifyHCard(cardCode);
+    if (!result.ok) return result;
+    return this.updateHCard(result.cardId, { status: "reserved", orderId })
+      ? { ok: true, cardId: result.cardId, productId: result.productId }
+      : { ok: false, status: "storage_error", message: "卡密锁定失败，请稍后重试。" };
+  }
+
+  completeHCard(cardId, orderId) {
+    return this.transitionHCard(cardId, orderId, "used", { usedAt: nowIso() });
+  }
+
+  releaseHCard(cardId, orderId) {
+    return this.transitionHCard(cardId, orderId, "unused", { usedAt: "" });
+  }
+
+  updateHCard(cardId, patch) {
+    const state = this.read();
+    const card = state.hCards.find(item => item.id === cardId);
+    if (!card) return null;
+    Object.assign(card, patch, { updatedAt: nowIso() });
+    this.write(state);
+    return card;
+  }
+
+  transitionHCard(cardId, orderId, status, extra = {}) {
+    const state = this.read();
+    const card = state.hCards.find(item => item.id === cardId);
+    if (!card || card.status !== "reserved" || card.orderId !== orderId) return false;
+    Object.assign(card, { ...extra, status, orderId: status === "unused" ? "" : orderId, updatedAt: nowIso() });
+    this.write(state);
+    return true;
   }
 }

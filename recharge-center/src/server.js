@@ -351,7 +351,7 @@ function serveHCardAdmin(res) {
     document.getElementById("generate").addEventListener("click", async () => {
       try {
         const data = await api("/api/admin/h-cards", { method: "POST", body: JSON.stringify({ count: Number(document.getElementById("count").value), expiresInDays: Number(document.getElementById("expiresInDays").value), productId: 3 }) });
-        generated.innerHTML = data.cards.map(card => "<div class=\"card\"><code>" + escapeHtml(card.code) + "</code><a href=\"" + escapeHtml(card.link) + "\" target=\"_blank\" rel=\"noreferrer\">" + escapeHtml(card.link) + "</a></div>").join("");
+        generated.innerHTML = data.cards.map(card => '<div class="card"><code>' + escapeHtml(card.code) + '</code><a href="' + escapeHtml(card.link) + '" target="_blank" rel="noreferrer">' + escapeHtml(card.link) + '</a></div>').join("");
         setStatus("已生成 " + data.cards.length + " 张卡密。请立即复制并保存，刷新后不会再次显示完整卡密。");
         loadCards();
       } catch (error) { setStatus(error.message, true); }

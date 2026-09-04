@@ -356,6 +356,14 @@ location = /api/admin/provider {
     proxy_set_header X-Forwarded-Proto $scheme;
 }
 
+location ^~ /api/admin/ {
+    proxy_pass http://127.0.0.1:8788;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
 location = /admin/provider {
     proxy_pass http://127.0.0.1:8788;
     proxy_set_header Host $host;
@@ -365,6 +373,22 @@ location = /admin/provider {
 }
 
 location ^~ /admin/provider/ {
+    proxy_pass http://127.0.0.1:8788;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+location = /admin/cards {
+    proxy_pass http://127.0.0.1:8788;
+    proxy_set_header Host $host;
+    proxy_set_header X-Real-IP $remote_addr;
+    proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    proxy_set_header X-Forwarded-Proto $scheme;
+}
+
+location ^~ /admin/cards/ {
     proxy_pass http://127.0.0.1:8788;
     proxy_set_header Host $host;
     proxy_set_header X-Real-IP $remote_addr;
@@ -403,7 +427,7 @@ cleanup_recharge_locations() {
         if (depth <= 0) skip = 0
         next
       }
-      if ($0 ~ /^[[:space:]]*location[[:space:]]/ && (index($0, "/api/recharge/") || index($0, "/admin/provider"))) {
+      if ($0 ~ /^[[:space:]]*location[[:space:]]/ && (index($0, "/api/recharge/") || index($0, "/api/admin/") || index($0, "/admin/provider") || index($0, "/admin/cards"))) {
         skip = 1
         depth = delta($0)
         if (depth <= 0) skip = 0
@@ -425,7 +449,7 @@ for root in $CLEANUP_ROOTS; do
   [ -d "$root" ] || continue
   find "$root" -maxdepth 8 -type f -name "*.conf" 2>/dev/null
 done | sort -u | while IFS= read -r conf_file; do
-  if grep -qE "GPTC RECHARGE CENTER|/api/recharge/|/admin/provider" "$conf_file"; then
+  if grep -qE "GPTC RECHARGE CENTER|/api/recharge/|/api/admin/|/admin/provider|/admin/cards" "$conf_file"; then
     echo "[gptc] cleaning $conf_file"
     cleanup_recharge_locations "$conf_file"
   fi
@@ -484,7 +508,7 @@ if [ -n "$SITE_CONF" ]; then
         if (depth <= 0) skip = 0
         next
       }
-      if ($0 ~ /^[[:space:]]*location[[:space:]]/ && (index($0, "/api/recharge/") || index($0, "/admin/provider"))) {
+      if ($0 ~ /^[[:space:]]*location[[:space:]]/ && (index($0, "/api/recharge/") || index($0, "/api/admin/") || index($0, "/admin/provider") || index($0, "/admin/cards"))) {
         skip = 1
         depth = delta($0)
         if (depth <= 0) skip = 0

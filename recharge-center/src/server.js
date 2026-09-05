@@ -270,8 +270,7 @@ function serveHCardAdmin(res) {
     .row-actions { display: flex; gap: 8px; }
     .row-actions button { min-height: 34px; padding: 0 10px; font-size: 13px; }
     .row-actions button.danger { color: #9f1239; background: #fff1f2; border: 1px solid #fda4af; }
-    .library-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
-    .library-heading strong { color: #0f766e; white-space: nowrap; }
+    .action-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 10px; color: #0f766e; background: #ecfdf5; border: 1px solid #99f6e4; font-weight: 900; text-decoration: none; }
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
     th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
@@ -299,27 +298,15 @@ function serveHCardAdmin(res) {
     </section>
     <section>
       <h2>最近卡密</h2>
-      <p class="hint">这里只显示最近生成的卡密，完整卡密库见下方；完整卡密只会在生成后展示一次。</p>
-      <button class="secondary" id="refresh" type="button">刷新列表</button>
+      <p class="hint">这里只显示最近生成的卡密，完整卡密库请进入二级页面查看。</p>
+      <div class="row-actions">
+        <button class="secondary" id="refresh" type="button">刷新列表</button>
+        <a class="action-link" href="/admin/cards/library">进入卡密库</a>
+      </div>
       <div class="table-wrap">
         <table>
           <thead><tr><th>卡密</th><th>状态</th><th>绑定账号</th><th>订单</th><th>创建时间</th><th>锁定时间</th><th>使用时间</th><th>操作</th></tr></thead>
           <tbody id="cards"></tbody>
-        </table>
-      </div>
-    </section>
-    <section>
-      <div class="library-heading">
-        <div>
-          <h2>卡密库（全部）</h2>
-          <p class="hint">显示所有 h 通道卡密及当前状态，卡密只显示掩码。</p>
-        </div>
-        <strong id="libraryCount">0 张</strong>
-      </div>
-      <div class="table-wrap">
-        <table>
-          <thead><tr><th>卡密</th><th>状态</th><th>绑定账号</th><th>订单</th><th>创建时间</th><th>锁定时间</th><th>使用时间</th><th>操作</th></tr></thead>
-          <tbody id="libraryCards"></tbody>
         </table>
       </div>
     </section>
@@ -382,28 +369,15 @@ function serveHCardAdmin(res) {
       } catch (error) { setStatus(error.message, true); }
     }
 
-    async function loadLibrary() {
-      try {
-        const data = await api("/api/admin/h-cards?all=1");
-        document.getElementById("libraryCards").innerHTML = renderCardRows(data.cards);
-        document.getElementById("libraryCount").textContent = data.cards.length + " 张";
-      } catch (error) { setStatus(error.message, true); }
-    }
-
-    async function refreshAll() {
-      await Promise.all([loadCards(), loadLibrary()]);
-      setStatus("卡密列表已刷新。");
-    }
-
     document.getElementById("generate").addEventListener("click", async () => {
       try {
         const data = await api("/api/admin/h-cards", { method: "POST", body: JSON.stringify({ count: Number(document.getElementById("count").value), expiresInDays: Number(document.getElementById("expiresInDays").value), productId: 3 }) });
         generated.innerHTML = data.cards.map(card => '<div class="card"><code>' + escapeHtml(card.code) + '</code><a href="' + escapeHtml(card.link) + '" target="_blank" rel="noreferrer">' + escapeHtml(card.link) + '</a></div>').join("");
         setStatus("已生成 " + data.cards.length + " 张卡密。请立即复制并保存，刷新后不会再次显示完整卡密。");
-        await refreshAll();
+        await loadCards();
       } catch (error) { setStatus(error.message, true); }
     });
-    document.getElementById("refresh").addEventListener("click", refreshAll);
+    document.getElementById("refresh").addEventListener("click", loadCards);
     async function handleCardAction(event) {
       const button = event.target.closest("[data-card-action]");
       if (!button) return;
@@ -412,15 +386,163 @@ function serveHCardAdmin(res) {
       button.disabled = true;
       try {
         await api("/api/admin/h-cards/" + encodeURIComponent(cardId) + "/" + action, { method: "POST", body: "{}" });
-        await refreshAll();
+        await loadCards();
         setStatus(action === "unlock" ? "卡密已解锁，可绑定新账号。" : action === "disable" ? "卡密已禁用。" : "卡密已启用。");
       } catch (error) {
         setStatus(error.message, true);
         button.disabled = false;
       }
     }
-    ["cards", "libraryCards"].forEach(id => document.getElementById(id).addEventListener("click", handleCardAction));
-    if (token) refreshAll();
+    document.getElementById("cards").addEventListener("click", handleCardAction);
+    if (token) loadCards();
+  </script>
+</body>
+</html>`;
+  res.writeHead(200, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store",
+    "Referrer-Policy": "no-referrer"
+  });
+  res.end(html);
+}
+
+function serveHCardLibraryAdmin(res) {
+  const html = `<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>h 通道卡密库｜GPTC.cc</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; padding: 20px; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #132033; background: #f4f7fb; }
+    main { width: min(1180px, 100%); margin: 0 auto; }
+    section { background: #fff; border: 1px solid #dbe4ee; border-radius: 14px; box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08); padding: 22px; margin-bottom: 16px; }
+    h1 { margin: 0 0 8px; font-size: 26px; }
+    p, .hint { color: #64748b; line-height: 1.6; }
+    .topbar { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+    .top-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+    .back-link, button { min-height: 44px; border-radius: 10px; padding: 0 16px; font: inherit; font-weight: 900; cursor: pointer; }
+    .back-link { display: inline-flex; align-items: center; color: #0f766e; background: #ecfdf5; border: 1px solid #99f6e4; text-decoration: none; }
+    button { border: 0; color: #fff; background: #0f766e; }
+    button.secondary { color: #0f766e; background: #ecfdf5; border: 1px solid #99f6e4; }
+    button.danger { color: #9f1239; background: #fff1f2; border: 1px solid #fda4af; }
+    button:disabled { opacity: .55; cursor: wait; }
+    label { display: grid; gap: 8px; max-width: 620px; font-weight: 800; }
+    input { width: 100%; min-height: 44px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 0 12px; font: inherit; }
+    .toolbar { display: flex; align-items: end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+    .status { margin-top: 16px; padding: 12px; border-radius: 10px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; line-height: 1.6; white-space: pre-wrap; }
+    .status.error { background: #fff1f2; border-color: #fda4af; color: #9f1239; }
+    .count { color: #475569; font-weight: 800; }
+    .table-wrap { overflow-x: auto; margin-top: 14px; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 11px 8px; text-align: left; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
+    th { color: #475569; }
+    .row-actions { display: flex; gap: 8px; }
+    .row-actions button { min-height: 34px; padding: 0 10px; font-size: 13px; }
+    .hint { margin: 10px 0 0; font-size: 13px; }
+    @media (max-width: 640px) { body { padding: 12px; } section { padding: 16px; } .toolbar { align-items: stretch; } .toolbar button, .top-actions > * { width: 100%; justify-content: center; } }
+  </style>
+</head>
+<body>
+  <main>
+    <section>
+      <div class="topbar">
+        <div><h1>h 通道卡密库</h1><p class="hint">查看全部卡密状态。卡密只显示掩码，解锁后可绑定新账号。</p></div>
+        <div class="top-actions"><a class="back-link" href="/admin/cards">返回生成页</a><button class="secondary" id="refresh" type="button">刷新列表</button></div>
+      </div>
+      <label>
+        管理密码
+        <input id="adminToken" type="password" autocomplete="current-password" placeholder="请输入 ADMIN_TOKEN">
+      </label>
+      <div class="status" id="statusBox">输入管理密码后，可以查看和管理卡密。</div>
+    </section>
+    <section>
+      <div class="toolbar"><h2>全部卡密</h2><span class="count" id="libraryCount">-</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>卡密</th><th>状态</th><th>绑定账号</th><th>订单</th><th>创建时间</th><th>锁定时间</th><th>使用时间</th><th>操作</th></tr></thead>
+          <tbody id="libraryCards"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script>
+    const tokenInput = document.getElementById("adminToken");
+    const statusBox = document.getElementById("statusBox");
+    const params = new URLSearchParams(window.location.search);
+    const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+    const tokenFromHash = hashParams.get("token") || "";
+    const tokenFromQuery = params.get("token") || "";
+    const token = tokenFromHash || tokenFromQuery || localStorage.getItem("gptcProviderAdminToken") || "";
+    tokenInput.value = token;
+    if (tokenFromHash || tokenFromQuery) {
+      localStorage.setItem("gptcProviderAdminToken", token);
+      if (tokenFromQuery) window.history.replaceState(null, "", window.location.pathname + (window.location.hash || ""));
+    }
+
+    function setStatus(message, error = false) {
+      statusBox.textContent = message;
+      statusBox.classList.toggle("error", error);
+    }
+
+    function escapeHtml(value) {
+      return String(value ?? "").replace(/[&<>\"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '\"': "&quot;", "'": "&#39;" }[character]));
+    }
+
+    async function api(path, options = {}) {
+      const currentToken = tokenInput.value.trim();
+      if (!currentToken) throw new Error("请先输入管理密码。");
+      localStorage.setItem("gptcProviderAdminToken", currentToken);
+      const response = await fetch(path, { ...options, headers: { "Content-Type": "application/json", "X-Admin-Token": currentToken, ...(options.headers || {}) } });
+      const data = await response.json();
+      if (!data.success) throw new Error(data.message || "操作失败。");
+      return data.data;
+    }
+
+    const statusLabels = { unused: "未使用", locked: "已锁定", reserved: "处理中", used: "已使用", disabled: "已禁用", expired: "已过期" };
+
+    function renderRows(cards) {
+      return cards.map(card => {
+        const actionHtml = [
+          card.status === "locked" || card.status === "reserved"
+            ? '<button type="button" data-card-action="unlock" data-card-id="' + escapeHtml(card.id) + '">解锁</button>'
+            : "",
+          card.status === "disabled"
+            ? '<button type="button" data-card-action="enable" data-card-id="' + escapeHtml(card.id) + '">启用</button>'
+            : '<button class="danger" type="button" data-card-action="disable" data-card-id="' + escapeHtml(card.id) + '">禁用</button>'
+        ].filter(Boolean).join("");
+        const account = [card.boundEmail, card.boundAccountId].filter(Boolean).join(" / ") || "-";
+        return '<tr><td>' + escapeHtml(card.cardMask) + '</td><td>' + escapeHtml(statusLabels[card.status] || card.status) + '</td><td>' + escapeHtml(account) + '</td><td>' + escapeHtml(card.orderId || "-") + '</td><td>' + escapeHtml(card.createdAt) + '</td><td>' + escapeHtml(card.boundAt || "-") + '</td><td>' + escapeHtml(card.usedAt || "-") + '</td><td><div class="row-actions">' + actionHtml + '</div></td></tr>';
+      }).join("") || '<tr><td colspan="8">暂无卡密</td></tr>';
+    }
+
+    async function loadLibrary() {
+      try {
+        const data = await api("/api/admin/h-cards?all=1");
+        document.getElementById("libraryCards").innerHTML = renderRows(data.cards);
+        document.getElementById("libraryCount").textContent = data.cards.length + " 张";
+        setStatus("已加载全部卡密。");
+      } catch (error) { setStatus(error.message, true); }
+    }
+
+    document.getElementById("refresh").addEventListener("click", loadLibrary);
+    document.getElementById("libraryCards").addEventListener("click", async event => {
+      const button = event.target.closest("[data-card-action]");
+      if (!button) return;
+      button.disabled = true;
+      try {
+        const action = button.dataset.cardAction;
+        await api("/api/admin/h-cards/" + encodeURIComponent(button.dataset.cardId) + "/" + action, { method: "POST", body: "{}" });
+        await loadLibrary();
+        setStatus(action === "unlock" ? "卡密已解锁，可绑定新账号。" : action === "disable" ? "卡密已禁用。" : "卡密已启用。");
+      } catch (error) {
+        setStatus(error.message, true);
+        button.disabled = false;
+      }
+    });
+    if (token) loadLibrary();
   </script>
 </body>
 </html>`;
@@ -535,6 +657,11 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "GET" && (url.pathname === "/admin/provider" || url.pathname === "/admin/provider/")) {
       serveProviderAdmin(res);
+      return;
+    }
+
+    if (req.method === "GET" && (url.pathname === "/admin/cards/library" || url.pathname === "/admin/cards/library/")) {
+      serveHCardLibraryAdmin(res);
       return;
     }
 

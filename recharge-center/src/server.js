@@ -270,6 +270,8 @@ function serveHCardAdmin(res) {
     .row-actions { display: flex; gap: 8px; }
     .row-actions button { min-height: 34px; padding: 0 10px; font-size: 13px; }
     .row-actions button.danger { color: #9f1239; background: #fff1f2; border: 1px solid #fda4af; }
+    .library-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+    .library-heading strong { color: #0f766e; white-space: nowrap; }
     .table-wrap { overflow-x: auto; }
     table { width: 100%; border-collapse: collapse; margin-top: 12px; font-size: 14px; }
     th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
@@ -297,12 +299,27 @@ function serveHCardAdmin(res) {
     </section>
     <section>
       <h2>最近卡密</h2>
-      <p class="hint">这里只显示掩码和状态，不会再次显示完整卡密。</p>
+      <p class="hint">这里只显示最近生成的卡密，完整卡密库见下方；完整卡密只会在生成后展示一次。</p>
       <button class="secondary" id="refresh" type="button">刷新列表</button>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>卡密</th><th>状态</th><th>绑定账号</th><th>订单</th><th>创建时间</th><th>锁定时间</th><th>操作</th></tr></thead>
+          <thead><tr><th>卡密</th><th>状态</th><th>绑定账号</th><th>订单</th><th>创建时间</th><th>锁定时间</th><th>使用时间</th><th>操作</th></tr></thead>
           <tbody id="cards"></tbody>
+        </table>
+      </div>
+    </section>
+    <section>
+      <div class="library-heading">
+        <div>
+          <h2>卡密库（全部）</h2>
+          <p class="hint">显示所有 h 通道卡密及当前状态，卡密只显示掩码。</p>
+        </div>
+        <strong id="libraryCount">0 张</strong>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>卡密</th><th>状态</th><th>绑定账号</th><th>订单</th><th>创建时间</th><th>锁定时间</th><th>使用时间</th><th>操作</th></tr></thead>
+          <tbody id="libraryCards"></tbody>
         </table>
       </div>
     </section>
@@ -341,22 +358,41 @@ function serveHCardAdmin(res) {
       return data.data;
     }
 
+    const statusLabels = { unused: "未使用", locked: "已锁定", reserved: "处理中", used: "已使用", disabled: "已禁用", expired: "已过期" };
+
+    function renderCardRows(cards) {
+      return cards.map(card => {
+        const actionHtml = [
+          card.status === "locked" || card.status === "reserved"
+            ? '<button type="button" data-card-action="unlock" data-card-id="' + escapeHtml(card.id) + '">解锁</button>'
+            : "",
+          card.status === "disabled"
+            ? '<button type="button" data-card-action="enable" data-card-id="' + escapeHtml(card.id) + '">启用</button>'
+            : '<button class="danger" type="button" data-card-action="disable" data-card-id="' + escapeHtml(card.id) + '">禁用</button>'
+        ].filter(Boolean).join("");
+        const account = [card.boundEmail, card.boundAccountId].filter(Boolean).join(" / ") || "-";
+        return '<tr><td>' + escapeHtml(card.cardMask) + '</td><td>' + escapeHtml(statusLabels[card.status] || card.status) + '</td><td>' + escapeHtml(account) + '</td><td>' + escapeHtml(card.orderId || "-") + '</td><td>' + escapeHtml(card.createdAt) + '</td><td>' + escapeHtml(card.boundAt || "-") + '</td><td>' + escapeHtml(card.usedAt || "-") + '</td><td><div class="row-actions">' + actionHtml + '</div></td></tr>';
+      }).join("") || '<tr><td colspan="8">暂无卡密</td></tr>';
+    }
+
     async function loadCards() {
       try {
         const data = await api("/api/admin/h-cards");
-        document.getElementById("cards").innerHTML = data.cards.map(card => {
-          const actionHtml = [
-            card.status === "locked" || card.status === "reserved"
-              ? '<button type="button" data-card-action="unlock" data-card-id="' + escapeHtml(card.id) + '">解锁</button>'
-              : "",
-            card.status === "disabled"
-              ? '<button type="button" data-card-action="enable" data-card-id="' + escapeHtml(card.id) + '">启用</button>'
-              : '<button class="danger" type="button" data-card-action="disable" data-card-id="' + escapeHtml(card.id) + '">禁用</button>'
-          ].filter(Boolean).join("");
-          return '<tr><td>' + escapeHtml(card.cardMask) + '</td><td>' + escapeHtml(card.status) + '</td><td>' + escapeHtml(card.boundEmail || "-") + '</td><td>' + escapeHtml(card.orderId || "-") + '</td><td>' + escapeHtml(card.createdAt) + '</td><td>' + escapeHtml(card.boundAt || "-") + '</td><td><div class="row-actions">' + actionHtml + '</div></td></tr>';
-        }).join("") || '<tr><td colspan="7">暂无卡密</td></tr>';
-        setStatus("卡密列表已刷新。");
+        document.getElementById("cards").innerHTML = renderCardRows(data.cards);
       } catch (error) { setStatus(error.message, true); }
+    }
+
+    async function loadLibrary() {
+      try {
+        const data = await api("/api/admin/h-cards?all=1");
+        document.getElementById("libraryCards").innerHTML = renderCardRows(data.cards);
+        document.getElementById("libraryCount").textContent = data.cards.length + " 张";
+      } catch (error) { setStatus(error.message, true); }
+    }
+
+    async function refreshAll() {
+      await Promise.all([loadCards(), loadLibrary()]);
+      setStatus("卡密列表已刷新。");
     }
 
     document.getElementById("generate").addEventListener("click", async () => {
@@ -364,11 +400,11 @@ function serveHCardAdmin(res) {
         const data = await api("/api/admin/h-cards", { method: "POST", body: JSON.stringify({ count: Number(document.getElementById("count").value), expiresInDays: Number(document.getElementById("expiresInDays").value), productId: 3 }) });
         generated.innerHTML = data.cards.map(card => '<div class="card"><code>' + escapeHtml(card.code) + '</code><a href="' + escapeHtml(card.link) + '" target="_blank" rel="noreferrer">' + escapeHtml(card.link) + '</a></div>').join("");
         setStatus("已生成 " + data.cards.length + " 张卡密。请立即复制并保存，刷新后不会再次显示完整卡密。");
-        loadCards();
+        await refreshAll();
       } catch (error) { setStatus(error.message, true); }
     });
-    document.getElementById("refresh").addEventListener("click", loadCards);
-    document.getElementById("cards").addEventListener("click", async (event) => {
+    document.getElementById("refresh").addEventListener("click", refreshAll);
+    async function handleCardAction(event) {
       const button = event.target.closest("[data-card-action]");
       if (!button) return;
       const action = button.dataset.cardAction;
@@ -376,14 +412,15 @@ function serveHCardAdmin(res) {
       button.disabled = true;
       try {
         await api("/api/admin/h-cards/" + encodeURIComponent(cardId) + "/" + action, { method: "POST", body: "{}" });
+        await refreshAll();
         setStatus(action === "unlock" ? "卡密已解锁，可绑定新账号。" : action === "disable" ? "卡密已禁用。" : "卡密已启用。");
-        await loadCards();
       } catch (error) {
         setStatus(error.message, true);
         button.disabled = false;
       }
-    });
-    if (token) loadCards();
+    }
+    ["cards", "libraryCards"].forEach(id => document.getElementById(id).addEventListener("click", handleCardAction));
+    if (token) refreshAll();
   </script>
 </body>
 </html>`;
@@ -555,7 +592,10 @@ const server = http.createServer(async (req, res) => {
         sendJson(res, auth.status, { success: false, message: auth.message });
         return;
       }
-      const result = rechargeService.listHCards(url.searchParams.get("limit") || 100);
+      const result = rechargeService.listHCards(
+        url.searchParams.get("limit") || 100,
+        ["1", "true"].includes(url.searchParams.get("all"))
+      );
       sendJson(res, result.status, { success: true, data: result.data });
       return;
     }

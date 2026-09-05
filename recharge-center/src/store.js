@@ -237,9 +237,12 @@ export class JsonStore {
     return result;
   }
 
-  listHCards(limit = 100) {
-    return this.read().hCards
-      .slice(-Math.min(Math.max(Number(limit) || 100, 1), 500))
+  listHCards(limit = 100, all = false) {
+    const cards = this.read().hCards;
+    const selected = all
+      ? cards
+      : cards.slice(-Math.min(Math.max(Number(limit) || 100, 1), 500));
+    return selected
       .reverse()
       .map(card => ({
         id: card.id,

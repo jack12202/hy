@@ -203,8 +203,8 @@ export const rechargeService = {
     return { ok: true, status: 200, data: { cards } };
   },
 
-  listHCards(limit = 100) {
-    return { ok: true, status: 200, data: { cards: store.listHCards(limit) } };
+  listHCards(limit = 100, all = false) {
+    return { ok: true, status: 200, data: { cards: store.listHCards(limit, all) } };
   },
 
   unlockHCard(cardId) {

@@ -15,6 +15,8 @@ test("h cards bind once, stay locked on failure, and support admin unlock/disabl
   assert.equal(cards.length, 3);
   assert.notEqual(cards[0].code, cards[1].code);
   assert.equal(store.listHCards().every(card => !("code" in card) && !("codeHash" in card)), true);
+  assert.equal(store.listHCards(1).length, 1);
+  assert.equal(store.listHCards(1, true).length, 3);
   assert.equal(store.verifyHCard(cards[0].code).ok, true);
 
   assert.equal(store.verifyHCard(cards[0].code).status, "unused");

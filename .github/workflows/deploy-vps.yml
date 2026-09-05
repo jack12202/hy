@@ -53,6 +53,7 @@ jobs:
           PANEL_PASS: ${{ secrets.PANEL_PASS }}
           PANEL_TARGET_DIR: ${{ secrets.PANEL_TARGET_DIR }}
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
+          HIFUPAY_API_KEY: ${{ secrets.HIFUPAY_API_KEY }}
         run: |
           node ./scripts/deploy-recharge-backend-1panel.mjs
 

@@ -5,6 +5,7 @@ const PANEL_ENTRANCE = process.env.PANEL_ENTRANCE;
 const PANEL_USER = process.env.PANEL_USER;
 const PANEL_PASS = process.env.PANEL_PASS;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
+const HIFUPAY_API_KEY = process.env.HIFUPAY_API_KEY;
 const PANEL_TARGET_DIR = process.env.PANEL_TARGET_DIR || "";
 const API_PREFIX = "/api/v1";
 
@@ -13,7 +14,8 @@ for (const [name, value] of Object.entries({
   PANEL_ENTRANCE,
   PANEL_USER,
   PANEL_PASS,
-  ADMIN_TOKEN
+  ADMIN_TOKEN,
+  HIFUPAY_API_KEY
 })) {
   if (!value) {
     throw new Error(`Missing required environment variable: ${name}`);
@@ -211,6 +213,7 @@ function shellQuote(value) {
 
 function buildDeployScript() {
   const adminToken = envFileValue(ADMIN_TOKEN);
+  const hifupayApiKey = envFileValue(HIFUPAY_API_KEY);
   const staticTargetDir = shellQuote(PANEL_TARGET_DIR);
   return `#!/bin/sh
 set -eu
@@ -256,6 +259,7 @@ HOST=0.0.0.0
 PORT=8788
 DEFAULT_PROVIDER=czgpt
 ADMIN_TOKEN=${adminToken}
+HIFUPAY_API_KEY=${hifupayApiKey}
 AYAN_BASE_URL=https://api.987ai.vip
 AJIAN_BASE_URL=https://ajian.chat
 UPSTREAM_BASE_URL=https://kkk.ow800.com

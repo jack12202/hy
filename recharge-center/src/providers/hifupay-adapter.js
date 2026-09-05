@@ -37,7 +37,7 @@ function normalizeVerify(result, cardCode) {
   };
 }
 
-function normalizeStart(raw, cardId) {
+function normalizeStart(raw, cardId, hifupayCardId) {
   const body = raw?.data && typeof raw.data === "object" ? raw.data : {};
   const taskId = body.taskId || body.task_id || "";
   const success = raw.ok && Boolean(taskId) && body.success !== false;
@@ -47,10 +47,28 @@ function normalizeStart(raw, cardId) {
     providerLabel: "h",
     taskId,
     cardId,
+    hifupayCardId,
     status: success ? "processing" : "failed",
     message: body.message || errorMessage(raw, success ? "充值任务已提交。" : "充值提交失败。"),
     raw: body
   };
+}
+
+function extractCards(raw) {
+  const body = raw?.data && typeof raw.data === "object" ? raw.data : {};
+  const nested = body.data && typeof body.data === "object" ? body.data : {};
+  const candidates = Array.isArray(body)
+    ? body
+    : Array.isArray(body.cards)
+      ? body.cards
+      : Array.isArray(nested.cards)
+        ? nested.cards
+      : Array.isArray(body.data)
+        ? body.data
+        : Array.isArray(body.items)
+          ? body.items
+          : [];
+  return candidates.filter(item => item && typeof item === "object");
 }
 
 function normalizeStatus(raw) {
@@ -133,7 +151,27 @@ export const hifupayAdapter = {
     return { ok: data.success, status: data.success ? 200 : 400, data };
   },
 
-  async startRecharge({ cardInfo, fullAuthData, orderId, userEmail, accountId }) {
+  async listCards() {
+    const session = await login();
+    if (!session.ok) return { ok: false, status: session.status || 502, data: { message: session.message } };
+
+    const raw = await requestJson(config.hifupayBaseUrl, "/api/hfp/cards", {
+      method: "POST",
+      headers: apiHeaders(session.apiKey),
+      payload: {}
+    });
+    const cards = extractCards(raw);
+    if (!raw.ok || !cards.length) {
+      return {
+        ok: false,
+        status: raw.ok ? 409 : raw.status || 502,
+        data: { message: errorMessage(raw, "嗨付没有返回可用卡片列表。"), cards }
+      };
+    }
+    return { ok: true, status: raw.status, data: { cards } };
+  },
+
+  async startRecharge({ cardInfo, fullAuthData, orderId, userEmail, accountId, plan = config.hifupayPlan }) {
     const cardCode = extractCardCode(cardInfo);
     if (!cardCode || !requiredString(orderId)) {
       return { ok: false, status: 400, data: { provider: "h", providerLabel: "h", message: "缺少卡密或订单号。" } };
@@ -144,33 +182,69 @@ export const hifupayAdapter = {
       return { ok: false, status: 409, data: { provider: "h", providerLabel: "h", message: reservation.message } };
     }
 
-    const cardId = process.env.HIFUPAY_CARD_ID ?? config.hifupayCardId;
-    if (!requiredString(cardId)) {
-      return {
-        ok: false,
-        status: 503,
-        data: { provider: "h", providerLabel: "h", cardId: reservation.cardId, message: "h通道卡片 ID 未配置，当前版本暂不自动选卡。" }
-      };
-    }
-
     const session = await login();
     if (!session.ok) {
       return { ok: false, status: session.status || 502, data: { provider: "h", providerLabel: "h", cardId: reservation.cardId, message: session.message } };
     }
 
-    const raw = await requestJson(config.hifupayBaseUrl, "/api/start", {
+    const cardsRaw = await requestJson(config.hifupayBaseUrl, "/api/hfp/cards", {
       method: "POST",
       headers: apiHeaders(session.apiKey),
-      payload: {
-        token: tokenPayload(fullAuthData),
-        plan: config.hifupayPlan,
-        region: config.hifupayRegion,
-        proxyRegion: config.hifupayProxyRegion,
-        engine: config.hifupayEngine,
-        hfpCardId: cardId
-      }
+      payload: {}
     });
-    const data = normalizeStart(raw, reservation.cardId);
+    const remoteCards = extractCards(cardsRaw);
+    if (!cardsRaw.ok || !remoteCards.length) {
+      return {
+        ok: false,
+        status: cardsRaw.ok ? 409 : cardsRaw.status || 502,
+        data: { provider: "h", providerLabel: "h", cardId: reservation.cardId, message: errorMessage(cardsRaw, "嗨付没有返回可用卡片列表，暂未提交充值。") }
+      };
+    }
+    hCardStore.syncHifupayCards(remoteCards);
+    const hifupayReservation = hCardStore.reserveHifupayCard({
+      orderId,
+      plan,
+      identity: accountIdentity(fullAuthData, userEmail, accountId),
+      estimatedChargeUsd: plan === "plus" ? config.hifupayEstimatedPlusChargeUsd : config.hifupayEstimatedProChargeUsd,
+      preferredCardId: process.env.HIFUPAY_CARD_ID || config.hifupayCardId
+    });
+    if (!hifupayReservation.ok) {
+      return {
+        ok: false,
+        status: 409,
+        data: { provider: "h", providerLabel: "h", cardId: reservation.cardId, message: hifupayReservation.message }
+      };
+    }
+    const hifupayCardId = hifupayReservation.hifupayCardId;
+
+    let raw;
+    try {
+      raw = await requestJson(config.hifupayBaseUrl, "/api/start", {
+        method: "POST",
+        headers: apiHeaders(session.apiKey),
+        payload: {
+          token: tokenPayload(fullAuthData),
+          plan,
+          region: config.hifupayRegion,
+          proxyRegion: config.hifupayProxyRegion,
+          engine: config.hifupayEngine,
+          hfpCardId: hifupayCardId
+        }
+      });
+    } catch (error) {
+      return {
+        ok: false,
+        status: 502,
+        data: {
+          provider: "h",
+          providerLabel: "h",
+          cardId: reservation.cardId,
+          hifupayCardId,
+          message: `嗨付充值请求异常，卡片已保留待人工确认：${error instanceof Error ? error.message : "网络请求失败"}`
+        }
+      };
+    }
+    const data = normalizeStart(raw, reservation.cardId, hifupayCardId);
     return { ok: data.success, status: raw.status, data };
   },
 

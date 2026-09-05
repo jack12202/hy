@@ -304,6 +304,7 @@ function serveHCardAdmin(res) {
       <div class="row-actions">
         <button class="secondary" id="refresh" type="button">刷新列表</button>
         <a class="action-link" href="/admin/cards/library">进入卡密库</a>
+        <a class="action-link" href="/admin/hifupay/cards">嗨付卡池</a>
         <a class="action-link" href="/admin/recoveries">人工处理</a>
       </div>
       <div class="table-wrap">
@@ -472,7 +473,7 @@ function serveHCardLibraryAdmin(res) {
     <section>
       <div class="topbar">
         <div><h1>h 通道卡密库</h1><p class="hint">查看全部卡密状态。卡密只显示掩码，解锁后可绑定新账号。</p></div>
-        <div class="top-actions"><a class="back-link" href="/admin/cards">返回生成页</a><a class="back-link" href="/admin/recoveries">人工处理</a><button class="secondary" id="refresh" type="button">刷新列表</button></div>
+        <div class="top-actions"><a class="back-link" href="/admin/cards">返回生成页</a><a class="back-link" href="/admin/hifupay/cards">嗨付卡池</a><a class="back-link" href="/admin/recoveries">人工处理</a><button class="secondary" id="refresh" type="button">刷新列表</button></div>
       </div>
       <label>
         管理密码
@@ -590,6 +591,27 @@ function serveHCardLibraryAdmin(res) {
     "Cache-Control": "no-store",
     "Referrer-Policy": "no-referrer"
   });
+  res.end(html);
+}
+
+function serveHifupayCardAdmin(res) {
+  const html = `<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="referrer" content="no-referrer"><title>嗨付卡池｜GPTC.cc</title>
+<style>
+*{box-sizing:border-box}body{margin:0;padding:20px;background:#f4f7fb;color:#132033;font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}main{max-width:1200px;margin:auto}section{padding:22px;margin-bottom:16px;background:#fff;border:1px solid #dbe4ee;border-radius:14px;box-shadow:0 18px 48px rgba(15,23,42,.08)}h1,h2{margin:0 0 8px}p{color:#64748b;line-height:1.6}.top,.actions{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}.actions{justify-content:flex-start}label{display:grid;gap:8px;margin-top:16px;font-weight:800;max-width:620px}input{min-height:44px;padding:0 12px;border:1px solid #cbd5e1;border-radius:10px;font:inherit}button,a{min-height:42px;padding:0 14px;border-radius:10px;font:inherit;font-weight:900;cursor:pointer}button{border:0;background:#0f766e;color:#fff}button.secondary,a{background:#ecfdf5;color:#0f766e;border:1px solid #99f6e4;text-decoration:none;display:inline-flex;align-items:center}button.danger{background:#fff1f2;color:#9f1239;border:1px solid #fda4af}.status{margin-top:16px;padding:12px;border-radius:10px;background:#eff6ff;border:1px solid #bfdbfe;color:#1e3a8a;white-space:pre-wrap}.error{background:#fff1f2;border-color:#fda4af;color:#9f1239}.table{overflow:auto;margin-top:14px}table{width:100%;border-collapse:collapse;font-size:14px}th,td{padding:11px 8px;text-align:left;vertical-align:top;border-bottom:1px solid #e2e8f0;white-space:nowrap}th{color:#475569}td.accounts{white-space:normal;min-width:260px;line-height:1.5}.badge{display:inline-block;padding:4px 8px;border-radius:999px;background:#ecfdf5;color:#047857;font-weight:900}.warn{background:#fff7ed;color:#c2410c}.bad{background:#fff1f2;color:#be123c}.hint{margin:8px 0 0;font-size:13px}@media(max-width:640px){body{padding:12px}section{padding:16px}.actions a,.actions button{width:100%;justify-content:center}}
+</style></head><body><main>
+<section><div class="top"><div><h1>嗨付卡池</h1><p>这里管理真正提交充值的嗨付卡片，不是用户拿到的激活卡密。系统只读取余额和状态，不会自动开卡、提余额或注销卡片。</p></div><div class="actions"><a href="/admin/cards">卡密生成</a><a href="/admin/cards/library">卡密库</a><a href="/admin/recoveries">人工处理</a></div></div>
+<label>管理密码<input id="token" type="password" autocomplete="current-password" placeholder="请输入 ADMIN_TOKEN"></label><div class="actions" style="margin-top:14px"><button id="refresh">刷新嗨付卡片</button><button class="secondary" id="local">查看本地记录</button></div><div class="status" id="status">输入管理密码后，可以读取嗨付卡池。</div></section>
+<section><div class="top"><h2>卡片状态</h2><strong id="count">0 张</strong></div><div class="table"><table><thead><tr><th>卡片</th><th>余额</th><th>Plus 名额</th><th>状态</th><th>保留截止</th><th>绑定账号</th><th>操作</th></tr></thead><tbody id="cards"><tr><td colspan="7">暂无记录</td></tr></tbody></table></div></section>
+</main><script>
+const token=document.getElementById("token"),statusBox=document.getElementById("status"),params=new URLSearchParams(location.search),hash=new URLSearchParams(location.hash.replace(/^#/,""));token.value=hash.get("token")||params.get("token")||localStorage.getItem("gptcProviderAdminToken")||"";if(token.value)localStorage.setItem("gptcProviderAdminToken",token.value);
+const esc=value=>String(value??"").replace(/[&<>\"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'\"':"&quot;","'":"&#39;"}[c]));const date=value=>{if(!value)return"-";const d=new Date(value);return Number.isNaN(d.getTime())?String(value):d.toLocaleString("zh-CN",{hour12:false})};const money=value=>value===null||value===undefined?"未知":"$"+Number(value).toFixed(2);const labels={ready:"可用",low_balance:"余额偏低",reserved:"处理中",full_hold:"已满·保留中",full_expired:"已满·待处理",disabled:"已禁用",upstream_unavailable:"上游不可用"};
+async function api(path,options={}){const current=token.value.trim();if(!current)throw Error("请先输入管理密码。");localStorage.setItem("gptcProviderAdminToken",current);const response=await fetch(path,{...options,headers:{"Content-Type":"application/json","X-Admin-Token":current,...(options.headers||{})}});const data=await response.json();if(!data.success)throw Error(data.message||"操作失败。");return data.data}
+function render(cards){return cards.map(card=>{const accounts=(card.plusUsers||[]).map(user=>esc((user.email||user.accountId||"未知账号")+(user.upgradeUntil?"（可升级至 "+date(user.upgradeUntil)+"）":""))).join("<br>")||"-";const pending=(card.inFlightOrders||[]).map(item=>'<br><small>待确认 '+esc(item.orderId)+' <button class="secondary" data-action="release" data-id="'+esc(card.id)+'" data-order-id="'+esc(item.orderId)+'">释放</button></small>').join("");const cls=["disabled"].includes(card.poolStatus)?"bad":["low_balance","reserved","full_hold","full_expired","upstream_unavailable"].includes(card.poolStatus)?"warn":"";const action=card.enabled?'<button class="danger" data-action="disable" data-id="'+esc(card.id)+'">禁用</button>':'<button class="secondary" data-action="enable" data-id="'+esc(card.id)+'">启用</button>';return '<tr><td>ID '+esc(card.id)+'<br>****'+esc(card.lastFour||"----")+'</td><td>'+esc(money(card.balance))+'<br><small>可用 '+esc(money(card.availableBalance))+'</small></td><td>'+esc(card.plusUsed+" / "+card.maxPlusUsers)+'<br><small>剩余 '+esc(card.plusRemaining)+'</small></td><td><span class="badge '+cls+'">'+esc(labels[card.poolStatus]||card.poolStatus||"未知")+'</span></td><td>'+esc(date(card.holdUntil))+'</td><td class="accounts">'+accounts+pending+'</td><td>'+action+'</td></tr>'}).join("")||'<tr><td colspan="7">暂无记录</td></tr>'}
+async function load(refresh=false){try{const data=await api("/api/admin/hifupay/cards"+(refresh?"?refresh=1":""));document.getElementById("cards").innerHTML=render(data.cards||[]);document.getElementById("count").textContent=(data.cards||[]).length+" 张";statusBox.textContent=refresh?"已刷新嗨付卡片余额和状态。":(data.updatedAt?"已加载本地卡池记录，最后同步："+date(data.updatedAt):"暂无本地卡池记录，请先刷新。");statusBox.classList.remove("error")}catch(error){statusBox.textContent=error.message;statusBox.classList.add("error")}}
+document.getElementById("refresh").onclick=()=>load(true);document.getElementById("local").onclick=()=>load(false);document.getElementById("cards").onclick=async event=>{const button=event.target.closest("[data-action]");if(!button)return;if(button.dataset.action==="release"&&!confirm("确认释放这笔待确认占用？请先确认嗨付没有扣款。"))return;button.disabled=true;try{await api("/api/admin/hifupay/cards/"+encodeURIComponent(button.dataset.id)+"/"+button.dataset.action,{method:"POST",body:button.dataset.action==="release"?JSON.stringify({orderId:button.dataset.orderId}):"{}"});await load(false)}catch(error){statusBox.textContent=error.message;statusBox.classList.add("error");button.disabled=false}};if(token.value)load(false);
+</script></body></html>`;
+  res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
   res.end(html);
 }
 
@@ -894,6 +916,11 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === "GET" && (url.pathname === "/admin/hifupay/cards" || url.pathname === "/admin/hifupay/cards/")) {
+      serveHifupayCardAdmin(res);
+      return;
+    }
+
     if (req.method === "GET" && (url.pathname === "/admin/recoveries" || url.pathname === "/admin/recoveries/")) {
       serveRecoveryAdmin(res);
       return;
@@ -959,6 +986,41 @@ const server = http.createServer(async (req, res) => {
         ["1", "true"].includes(url.searchParams.get("reveal"))
       );
       sendJson(res, result.status, { success: true, data: result.data });
+      return;
+    }
+
+    if (req.method === "GET" && url.pathname === "/api/admin/hifupay/cards") {
+      const auth = assertAdmin(req, url);
+      if (!auth.ok) {
+        sendJson(res, auth.status, { success: false, message: auth.message });
+        return;
+      }
+      if (["1", "true"].includes(url.searchParams.get("refresh"))) {
+        const refreshed = await rechargeService.refreshHifupayCards();
+        if (!refreshed.ok) {
+          sendJson(res, refreshed.status || 502, { success: false, message: refreshed.message });
+          return;
+        }
+      }
+      const result = rechargeService.listHifupayCards();
+      sendJson(res, result.status, { success: true, data: result.data });
+      return;
+    }
+
+    const hifupayCardAction = url.pathname.match(/^\/api\/admin\/hifupay\/cards\/([^/]+)\/(disable|enable|release)$/);
+    if (req.method === "POST" && hifupayCardAction) {
+      const body = await readJsonBody(req);
+      const auth = assertAdmin(req, url, body);
+      if (!auth.ok) {
+        sendJson(res, auth.status, { success: false, message: auth.message });
+        return;
+      }
+      const cardId = decodeURIComponent(hifupayCardAction[1]);
+      const action = hifupayCardAction[2];
+      const result = action === "release"
+        ? rechargeService.clearHifupayReservation(cardId, body.orderId)
+        : rechargeService.setHifupayCardEnabled(cardId, action === "enable");
+      sendJson(res, result.status, result.ok ? { success: true, data: result.data } : { success: false, message: result.message });
       return;
     }
 

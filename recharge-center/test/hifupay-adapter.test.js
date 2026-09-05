@@ -21,12 +21,20 @@ function sendJson(res, status, payload) {
 
 test("hifupay adapter submits Plus PH tasks and normalizes polling status", async t => {
   let pollCount = 0;
+  let cardsAvailable = true;
   const upstream = http.createServer(async (req, res) => {
     if (req.method === "POST" && req.url === "/api/hfp/login") {
       const body = JSON.parse(await readBody(req));
       assert.equal(body.apiKey, "hifupay-test-key");
       assert.equal(body.platform, "haifupaytop");
       sendJson(res, 200, { success: true, apiKey: "hifupay-session-key" });
+      return;
+    }
+
+    if (req.method === "POST" && req.url === "/api/hfp/cards") {
+      sendJson(res, 200, cardsAvailable
+        ? { cards: [{ id: "7172", lastFour: "4113", status: "active", balance: 66, expiryDate: "09/28" }, { id: "7667", lastFour: "6737", status: "active", balance: 20, expiryDate: "09/28" }] }
+        : { cards: [] });
       return;
     }
 
@@ -128,7 +136,7 @@ test("hifupay adapter submits Plus PH tasks and normalizes polling status", asyn
   assert.equal(new JsonStore(dataFile).getHCardByCode(card.code).status, "used");
 
   const [failedCard] = new JsonStore(dataFile).createHCards({ count: 1, productId: 3 });
-  process.env.HIFUPAY_CARD_ID = "";
+  cardsAvailable = false;
   const failedStart = await hifupayAdapter.startRecharge({
     cardInfo: failedCard.code,
     orderId: "order_h_failed",
@@ -139,7 +147,7 @@ test("hifupay adapter submits Plus PH tasks and normalizes polling status", asyn
     }
   });
   assert.equal(failedStart.ok, false);
-  assert.equal(failedStart.status, 503);
+  assert.equal(failedStart.status, 409);
   const failedStoredCard = new JsonStore(dataFile).getHCardByCode(failedCard.code);
   assert.equal(failedStoredCard.status, "locked");
   assert.equal(failedStoredCard.boundEmail, "failed@example.com");

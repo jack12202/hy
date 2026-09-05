@@ -47,6 +47,39 @@ function cardIdentityMatches(card, identity = {}) {
   return checks.length > 0 && checks.every(Boolean);
 }
 
+function hifupayIdentityMatches(user, identity = {}) {
+  const email = normalizeEmail(identity.email);
+  const accountId = normalizeAccountId(identity.accountId);
+  return Boolean(
+    (email && normalizeEmail(user?.email) === email) ||
+    (accountId && normalizeAccountId(user?.accountId) === accountId)
+  );
+}
+
+function hifupayCardId(value) {
+  return String(value ?? "").trim();
+}
+
+function hifupayRemoteStatus(value) {
+  const status = String(value || "active").trim().toLowerCase();
+  return status || "active";
+}
+
+function hifupayBalance(value) {
+  const balance = Number(value);
+  return Number.isFinite(balance) ? balance : null;
+}
+
+function maxIsoDate(values = []) {
+  const dates = values
+    .map(value => String(value || ""))
+    .filter(Boolean)
+    .map(value => ({ value, time: Date.parse(value) }))
+    .filter(item => Number.isFinite(item.time))
+    .sort((left, right) => right.time - left.time);
+  return dates[0]?.value || "";
+}
+
 function protectionKey() {
   return config.recoveryEncryptionKey || config.adminToken || "local-development-only";
 }
@@ -69,11 +102,13 @@ function createInitialState() {
     rechargeSessions: [],
     rechargeLogs: [],
     hCards: [],
+    hifupayCards: [],
     settings: {
       defaultProvider: config.defaultProvider,
       providerConfigVersion: PROVIDER_CONFIG_VERSION,
       providerUpdatedAt: "",
-      providerUpdatedBy: ""
+      providerUpdatedBy: "",
+      hifupayCardsUpdatedAt: ""
     }
   };
 }
@@ -100,6 +135,7 @@ function normalizeState(state) {
     rechargeSessions: Array.isArray(state?.rechargeSessions) ? state.rechargeSessions : [],
     rechargeLogs: Array.isArray(state?.rechargeLogs) ? state.rechargeLogs : [],
     hCards: Array.isArray(state?.hCards) ? state.hCards : [],
+    hifupayCards: Array.isArray(state?.hifupayCards) ? state.hifupayCards : [],
     settings
   };
 }
@@ -280,6 +316,246 @@ export class JsonStore {
         createdAt: card.createdAt,
         usedAt: card.usedAt || ""
       }));
+  }
+
+  syncHifupayCards(remoteCards = []) {
+    const state = this.read();
+    const timestamp = nowIso();
+    const cards = Array.isArray(remoteCards) ? remoteCards : [];
+    const seenIds = new Set();
+
+    for (const remote of cards) {
+      const id = hifupayCardId(remote.id ?? remote.cardId ?? remote.card_id);
+      if (!id) continue;
+      seenIds.add(id);
+      const current = state.hifupayCards.find(item => item.id === id);
+      const card = current || {
+        id,
+        lastFour: "",
+        status: "active",
+        balance: null,
+        expiryDate: "",
+        enabled: true,
+        priority: 0,
+        plusUsers: [],
+        inFlightOrders: [],
+        createdAt: timestamp
+      };
+      Object.assign(card, {
+        id,
+        lastFour: String(remote.lastFour ?? remote.last4 ?? remote.last_four ?? card.lastFour ?? ""),
+        status: hifupayRemoteStatus(remote.status ?? remote.state ?? card.status),
+        balance: hifupayBalance(remote.balance ?? remote.availableBalance ?? remote.available_balance ?? card.balance),
+        expiryDate: String(remote.expiryDate ?? remote.expiry_date ?? remote.expiry ?? card.expiryDate ?? ""),
+        updatedAt: timestamp
+      });
+      if (!Array.isArray(card.plusUsers)) card.plusUsers = [];
+      if (!Array.isArray(card.inFlightOrders)) card.inFlightOrders = [];
+      if (typeof card.enabled !== "boolean") card.enabled = true;
+      if (!state.hifupayCards.includes(card)) state.hifupayCards.push(card);
+    }
+
+    for (const card of state.hifupayCards) {
+      if (!seenIds.has(card.id)) {
+        card.status = "unavailable";
+        card.updatedAt = timestamp;
+      }
+    }
+
+    state.settings.hifupayCardsUpdatedAt = timestamp;
+    this.write(state);
+    return this.listHifupayCards();
+  }
+
+  listHifupayCards() {
+    const state = this.read();
+    const maxPlusUsers = Math.max(Number(config.hifupayMaxPlusUsers) || 4, 1);
+    const estimatedCharge = Math.max(Number(config.hifupayEstimatedPlusChargeUsd) || 0, 0);
+    const safetyBuffer = Math.max(Number(config.hifupaySafetyBufferUsd) || 0, 0);
+    return state.hifupayCards.map(card => {
+      const plusUsers = Array.isArray(card.plusUsers) ? card.plusUsers : [];
+      const inFlightOrders = Array.isArray(card.inFlightOrders) ? card.inFlightOrders : [];
+      const plusInFlight = inFlightOrders.filter(item => item.plan === "plus").length;
+      const reservedBalance = inFlightOrders.reduce((sum, item) => sum + (Number(item.estimatedChargeUsd) || 0), 0);
+      const holdUntil = maxIsoDate(plusUsers.map(user => user.upgradeUntil));
+      const full = plusUsers.length >= maxPlusUsers;
+      const expiredHold = full && (!holdUntil || Date.parse(holdUntil) <= Date.now());
+      let poolStatus = "ready";
+      if (!card.enabled) poolStatus = "disabled";
+      else if (hifupayRemoteStatus(card.status) !== "active") poolStatus = "upstream_unavailable";
+      else if (full) poolStatus = expiredHold ? "full_expired" : "full_hold";
+      else if (card.balance === null || card.balance - reservedBalance < estimatedCharge + safetyBuffer) poolStatus = "low_balance";
+      else if (plusInFlight >= maxPlusUsers - plusUsers.length) poolStatus = "reserved";
+
+      return {
+        id: card.id,
+        lastFour: card.lastFour || "",
+        status: hifupayRemoteStatus(card.status),
+        poolStatus,
+        enabled: card.enabled !== false,
+        priority: Number(card.priority) || 0,
+        balance: card.balance,
+        reservedBalance,
+        availableBalance: card.balance === null ? null : Math.max(card.balance - reservedBalance, 0),
+        maxPlusUsers,
+        plusUsed: plusUsers.length,
+        plusRemaining: Math.max(maxPlusUsers - plusUsers.length - plusInFlight, 0),
+        inFlightCount: inFlightOrders.length,
+        holdUntil,
+        expiryDate: card.expiryDate || "",
+        plusUsers: plusUsers.map(user => ({
+          email: user.email || "",
+          accountId: user.accountId || "",
+          orderId: user.orderId || "",
+          plusAt: user.plusAt || "",
+          upgradeUntil: user.upgradeUntil || "",
+          proAt: user.proAt || ""
+        })),
+        inFlightOrders: inFlightOrders.map(item => ({
+          orderId: item.orderId || "",
+          plan: item.plan || "",
+          state: item.state || "processing",
+          reservedAt: item.reservedAt || ""
+        })),
+        updatedAt: card.updatedAt || card.createdAt || ""
+      };
+    }).sort((left, right) => (left.priority - right.priority) || left.id.localeCompare(right.id));
+  }
+
+  reserveHifupayCard({ orderId, plan = "plus", identity = {}, estimatedChargeUsd = 0, preferredCardId = "" } = {}) {
+    const normalizedOrderId = String(orderId || "").trim();
+    const normalizedPlan = String(plan || "plus").trim().toLowerCase();
+    if (!normalizedOrderId) return { ok: false, status: "invalid", message: "缺少订单号，无法选择嗨付卡片。" };
+
+    const state = this.read();
+    const maxPlusUsers = Math.max(Number(config.hifupayMaxPlusUsers) || 4, 1);
+    const charge = Math.max(Number(estimatedChargeUsd) || 0, 0);
+    const safetyBuffer = Math.max(Number(config.hifupaySafetyBufferUsd) || 0, 0);
+    if (normalizedPlan !== "plus" && charge <= 0) {
+      return { ok: false, status: "unavailable", message: "Pro 充值金额尚未配置，暂不自动选择卡片。" };
+    }
+    const candidates = [];
+
+    for (const card of state.hifupayCards) {
+      if (card.inFlightOrders?.some(item => item.orderId === normalizedOrderId)) {
+        return { ok: true, cardId: card.id, hifupayCardId: card.id, reused: true };
+      }
+      if (card.enabled === false || hifupayRemoteStatus(card.status) !== "active") continue;
+      if (card.balance === null || card.balance < charge + safetyBuffer) continue;
+      const inFlight = Array.isArray(card.inFlightOrders) ? card.inFlightOrders : [];
+      const reservedBalance = inFlight.reduce((sum, item) => sum + (Number(item.estimatedChargeUsd) || 0), 0);
+      if (card.balance - reservedBalance < charge + safetyBuffer) continue;
+      const plusUsers = Array.isArray(card.plusUsers) ? card.plusUsers : [];
+
+      if (normalizedPlan === "plus") {
+        if (plusUsers.length + inFlight.filter(item => item.plan === "plus").length >= maxPlusUsers) continue;
+        if (plusUsers.some(user => hifupayIdentityMatches(user, identity))) continue;
+      } else {
+        const boundUser = plusUsers.find(user => hifupayIdentityMatches(user, identity));
+        if (!boundUser || !boundUser.upgradeUntil || Date.parse(boundUser.upgradeUntil) <= Date.now()) continue;
+      }
+
+      candidates.push({ card, plusUsers, inFlight });
+    }
+
+    candidates.sort((left, right) => {
+      const preferred = hifupayCardId(preferredCardId);
+      if (preferred && left.card.id === preferred && right.card.id !== preferred) return -1;
+      if (preferred && right.card.id === preferred && left.card.id !== preferred) return 1;
+      const leftSlots = left.plusUsers.length + left.inFlight.filter(item => item.plan === "plus").length;
+      const rightSlots = right.plusUsers.length + right.inFlight.filter(item => item.plan === "plus").length;
+      return (Number(left.card.priority) || 0) - (Number(right.card.priority) || 0) || leftSlots - rightSlots || left.card.id.localeCompare(right.card.id);
+    });
+
+    const selected = candidates[0]?.card;
+    if (!selected) {
+      return {
+        ok: false,
+        status: "unavailable",
+        message: normalizedPlan === "plus"
+          ? "当前没有可用的 Plus 卡片，请检查余额、卡片状态或已使用名额。"
+          : "当前账号没有处于 30 天升级期内的嗨付卡片。"
+      };
+    }
+
+    if (!Array.isArray(selected.inFlightOrders)) selected.inFlightOrders = [];
+    selected.inFlightOrders.push({
+      orderId: normalizedOrderId,
+      plan: normalizedPlan,
+      email: normalizeEmail(identity.email),
+      accountId: normalizeAccountId(identity.accountId),
+      estimatedChargeUsd: charge,
+      state: "processing",
+      reservedAt: nowIso()
+    });
+    selected.updatedAt = nowIso();
+    this.write(state);
+    return { ok: true, cardId: selected.id, hifupayCardId: selected.id, lastFour: selected.lastFour || "", reused: false };
+  }
+
+  recordHifupayResult({ cardId, orderId, plan = "plus", identity = {}, paymentConfirmed = false, status = "" } = {}) {
+    const state = this.read();
+    const card = state.hifupayCards.find(item => item.id === hifupayCardId(cardId));
+    if (!card) return { ok: false, status: "not_found", message: "嗨付卡片不在本地卡池中。" };
+    if (!Array.isArray(card.inFlightOrders)) card.inFlightOrders = [];
+    if (!Array.isArray(card.plusUsers)) card.plusUsers = [];
+    const inFlightIndex = card.inFlightOrders.findIndex(item => item.orderId === String(orderId || ""));
+    const inFlight = inFlightIndex >= 0 ? card.inFlightOrders[inFlightIndex] : null;
+
+    if (status === "needs_review" && !paymentConfirmed) {
+      if (inFlight) inFlight.state = "needs_review";
+      card.updatedAt = nowIso();
+      this.write(state);
+      return { ok: true, status: "needs_review", cardId: card.id };
+    }
+
+    if (inFlightIndex >= 0) card.inFlightOrders.splice(inFlightIndex, 1);
+    if (paymentConfirmed) {
+      const email = normalizeEmail(identity.email || inFlight?.email);
+      const accountId = normalizeAccountId(identity.accountId || inFlight?.accountId);
+      let user = card.plusUsers.find(item => hifupayIdentityMatches(item, { email, accountId }));
+      if (plan === "plus") {
+        if (!user) {
+          const plusAt = nowIso();
+          user = {
+            email,
+            accountId,
+            orderId: String(orderId || ""),
+            plusAt,
+            upgradeUntil: new Date(Date.now() + Math.max(Number(config.hifupayUpgradeWindowDays) || 30, 1) * 24 * 60 * 60 * 1000).toISOString(),
+            proAt: ""
+          };
+          card.plusUsers.push(user);
+        }
+      } else if (user) {
+        user.proAt = nowIso();
+      }
+    }
+    card.updatedAt = nowIso();
+    this.write(state);
+    return { ok: true, status: paymentConfirmed ? "recorded" : "released", cardId: card.id };
+  }
+
+  clearHifupayReservation(cardId, orderId) {
+    const state = this.read();
+    const card = state.hifupayCards.find(item => item.id === hifupayCardId(cardId));
+    if (!card || !Array.isArray(card.inFlightOrders)) return { ok: false, status: "not_found", message: "嗨付卡片或预留不存在。" };
+    const before = card.inFlightOrders.length;
+    card.inFlightOrders = card.inFlightOrders.filter(item => item.orderId !== String(orderId || ""));
+    if (before === card.inFlightOrders.length) return { ok: false, status: "not_found", message: "嗨付卡片预留不存在。" };
+    card.updatedAt = nowIso();
+    this.write(state);
+    return { ok: true, status: "released", cardId: card.id };
+  }
+
+  setHifupayCardEnabled(cardId, enabled) {
+    const state = this.read();
+    const card = state.hifupayCards.find(item => item.id === hifupayCardId(cardId));
+    if (!card) return { ok: false, status: "not_found", message: "嗨付卡片不存在。" };
+    card.enabled = Boolean(enabled);
+    card.updatedAt = nowIso();
+    this.write(state);
+    return { ok: true, status: card.enabled ? "enabled" : "disabled", cardId: card.id };
   }
 
   getHCardCode(cardId) {

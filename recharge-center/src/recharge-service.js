@@ -248,6 +248,49 @@ export const rechargeService = {
     return { ok: true, status: 200, data: { cards: store.listHCards(limit, all, reveal) } };
   },
 
+  async refreshHifupayCards() {
+    const adapter = getProviderAdapter("h");
+    if (typeof adapter.listCards !== "function") {
+      return { ok: false, status: 400, message: "h 通道暂不支持读取嗨付卡片列表。" };
+    }
+    const upstream = await adapter.listCards();
+    if (!upstream.ok) {
+      return { ok: false, status: upstream.status || 502, message: upstream.data?.message || "读取嗨付卡片列表失败。" };
+    }
+    return { ok: true, status: 200, data: { cards: store.syncHifupayCards(upstream.data.cards || []) } };
+  },
+
+  listHifupayCards() {
+    return {
+      ok: true,
+      status: 200,
+      data: {
+        cards: store.listHifupayCards(),
+        updatedAt: store.getSettings().hifupayCardsUpdatedAt || ""
+      }
+    };
+  },
+
+  setHifupayCardEnabled(cardId, enabled) {
+    const result = store.setHifupayCardEnabled(cardId, enabled);
+    return {
+      ok: result.ok,
+      status: result.ok ? 200 : 404,
+      data: result.ok ? { cardId: result.cardId, status: result.status } : undefined,
+      message: result.message
+    };
+  },
+
+  clearHifupayReservation(cardId, orderId) {
+    const result = store.clearHifupayReservation(cardId, orderId);
+    return {
+      ok: result.ok,
+      status: result.ok ? 200 : 404,
+      data: result.ok ? { cardId: result.cardId, status: result.status } : undefined,
+      message: result.message
+    };
+  },
+
   listRecoverySubmissions() {
     const recoveries = store.listRecoveryOrders();
     return {
@@ -323,6 +366,7 @@ export const rechargeService = {
         providerSessionId: order.providerSessionId || "",
         authProvider: typeof secret.data.authProvider === "string" ? secret.data.authProvider : "",
         productId: order.productId,
+        plan: config.hifupayPlan,
         overwriteRecharge: Boolean(order.overwriteRecharge)
       });
     } catch (error) {
@@ -342,6 +386,7 @@ export const rechargeService = {
     store.updateOrder(order.id, {
       upstreamTaskId,
       ...(upstream.data?.cardId ? { hCardId: upstream.data.cardId } : {}),
+      ...(upstream.data?.hifupayCardId ? { hifupayCardId: upstream.data.hifupayCardId } : {}),
       status,
       message
     });
@@ -373,6 +418,19 @@ export const rechargeService = {
         const current = store.getHCardByCode(storedCardCode(order));
         if (current?.status !== "used") {
           return { ok: false, status: 409, message: "卡密当前不是锁定状态，无法同步为已使用。" };
+        }
+      }
+      if (order.hifupayCardId) {
+        const secret = parseStoredSecret(order, record.session);
+        if (secret.ok) {
+          store.recordHifupayResult({
+            cardId: order.hifupayCardId,
+            orderId: order.id,
+            plan: config.hifupayPlan,
+            identity: { email: secret.data.userEmail, accountId: secret.data.account?.id || "" },
+            paymentConfirmed: true,
+            status: "success"
+          });
         }
       }
     }
@@ -530,6 +588,7 @@ export const rechargeService = {
       providerSessionId: input.providerSessionId || "",
       authProvider: typeof secret.authProvider === "string" ? secret.authProvider : "",
       productId: Number(productId || config.defaultProductId),
+      plan: config.hifupayPlan,
       overwriteRecharge: Boolean(overwriteRecharge)
     };
 
@@ -577,6 +636,7 @@ export const rechargeService = {
     store.updateOrder(order.id, {
       upstreamTaskId,
       ...(selectedProvider === "h" ? { hCardId: upstream.data?.cardId || "" } : {}),
+      ...(selectedProvider === "h" && upstream.data?.hifupayCardId ? { hifupayCardId: upstream.data.hifupayCardId } : {}),
       status,
       message
     });
@@ -677,6 +737,23 @@ export const rechargeService = {
         if (nextStatus === "success") {
           store.completeHCard(order.hCardId, order.id);
         }
+      }
+
+      if (
+        selectedProvider === "h" &&
+        order.hifupayCardId &&
+        ["success", "failed", "needs_review"].includes(nextStatus)
+      ) {
+        const storedSecret = store.getRechargeSession(order.id);
+        const parsedSecret = parseStoredSecret(order, storedSecret);
+        store.recordHifupayResult({
+          cardId: order.hifupayCardId,
+          orderId: order.id,
+          plan: config.hifupayPlan,
+          identity: parsedSecret.ok ? { email: parsedSecret.data.userEmail, accountId: parsedSecret.data.account?.id || "" } : {},
+          paymentConfirmed: taskData.paymentConfirmed === true,
+          status: nextStatus
+        });
       }
 
       store.updateOrder(order.id, {

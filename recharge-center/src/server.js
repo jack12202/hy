@@ -491,7 +491,7 @@ function serveHCardLibraryAdmin(res) {
     </section>
     <section>
       <div class="toolbar"><label>搜索<input id="cardSearch" type="search" placeholder="账号、卡密、后四位"></label><label>批次<select id="batchFilter"><option value="">全部批次</option></select></label><label>来源<select id="sourceFilter"><option value="">全部来源</option></select></label><label>状态<select id="cardStatusFilter"><option value="">全部状态</option><option value="unused">未使用</option><option value="locked">已锁定</option><option value="used">已使用</option><option value="disabled">已禁用</option><option value="archived">已归档</option></select></label><label>生成日期<input id="dateFilter" type="date"></label><label style="display:flex;grid-auto-flow:column;align-items:center;justify-content:start"><input id="showArchived" type="checkbox" class="check">显示归档</label><span class="count" id="libraryCount">-</span></div>
-      <div class="bulk-actions"><button class="secondary" id="selectAll">全选当前结果</button><button class="secondary" id="invertSelection">反选</button><button class="secondary" id="copySelectedCodes">复制选中卡密</button><button class="secondary" id="copySelectedLinks">复制选中链接</button><button class="secondary" id="downloadSelectedCsv">下载选中 Excel</button><button class="secondary" id="downloadSelectedZip">下载选中 ZIP</button><button data-bulk-action="disable">批量禁用</button><button class="secondary" data-bulk-action="enable">批量启用</button><button class="secondary" data-bulk-action="archive">批量归档</button><button class="danger" data-bulk-action="delete">批量删除</button><strong id="selectedCount">已选 0 张</strong></div>
+      <div class="bulk-actions"><button class="secondary" id="selectAll">全选当前结果</button><button class="secondary" id="invertSelection">反选</button><button class="secondary" id="copySelectedCodes">复制选中卡密</button><button class="secondary" id="copySelectedLinks">复制选中链接</button><button class="secondary" id="downloadSelectedZip">下载选中 ZIP</button><button data-bulk-action="disable">批量禁用</button><button class="secondary" data-bulk-action="enable">批量启用</button><button class="secondary" data-bulk-action="archive">批量归档</button><button class="danger" data-bulk-action="delete">批量删除</button><strong id="selectedCount">已选 0 张</strong></div>
       <div class="table-wrap">
         <table>
           <thead><tr><th><input id="selectPage" type="checkbox" class="check" title="全选当前结果"></th><th>序号</th><th>卡密</th><th>批次</th><th>来源</th><th>状态</th><th>绑定账号</th><th>生成时间</th><th>操作</th></tr></thead>
@@ -689,13 +689,6 @@ function serveHCardLibraryAdmin(res) {
       await navigator.clipboard.writeText(rows.map(card => type === "links" ? cardLink(card) : card.code).join("\\n"));
       setStatus("已复制选中 " + rows.length + " 张" + (type === "links" ? "充值链接。" : "卡密。"));
     }
-    function downloadSelectedCsv() {
-      const rows = selectedCardRows();
-      if (!rows.length) return setStatus("请先勾选有完整卡密的记录。", true);
-      const csvCell = value => '"' + String(value ?? "").replace(/"/g, '""') + '"';
-      const csv = ["序号,卡密,充值链接,批次,来源,状态,绑定账号,生成时间", ...rows.map((card, index) => [index + 1, card.code, cardLink(card), card.batchId || "", card.source || "", statusLabels[card.archivedAt ? "archived" : card.status] || card.status, [card.boundEmail, card.boundAccountId].filter(Boolean).join(" / "), formatDate(card.createdAt)].map(csvCell).join(","))].join("\\n");
-      downloadBlob(new Blob(["\\ufeff" + csv], { type: "text/csv;charset=utf-8" }), "卡密清单-" + rows.length + "张.csv");
-    }
     function downloadSelectedZip() {
       const rows = selectedCardRows();
       if (!rows.length) return setStatus("请先勾选有完整卡密的记录。", true);
@@ -710,7 +703,6 @@ function serveHCardLibraryAdmin(res) {
     document.getElementById("invertSelection").onclick = () => selectFiltered("invert");
     document.getElementById("copySelectedCodes").onclick = () => copySelected("codes");
     document.getElementById("copySelectedLinks").onclick = () => copySelected("links");
-    document.getElementById("downloadSelectedCsv").onclick = downloadSelectedCsv;
     document.getElementById("downloadSelectedZip").onclick = downloadSelectedZip;
     document.getElementById("selectPage").onchange = event => {
       filteredCards.forEach(card => event.target.checked ? selectedCards.add(card.id) : selectedCards.delete(card.id));

@@ -2,6 +2,7 @@ import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { config } from "./config.js";
+import { decryptSecretText, encryptSecretText } from "./utils.js";
 
 const PROVIDER_CONFIG_VERSION = 2;
 
@@ -44,6 +45,18 @@ function cardIdentityMatches(card, identity = {}) {
   if (card.boundEmail) checks.push(email && card.boundEmail === email);
   if (card.boundAccountId) checks.push(accountId && card.boundAccountId === accountId);
   return checks.length > 0 && checks.every(Boolean);
+}
+
+function protectionKey() {
+  return config.recoveryEncryptionKey || config.adminToken || "local-development-only";
+}
+
+function encryptProtected(value, context) {
+  return encryptSecretText(value, protectionKey(), context);
+}
+
+function decryptProtected(value, context) {
+  return decryptSecretText(value, protectionKey(), context);
 }
 
 function generateCardCode() {
@@ -121,6 +134,8 @@ export class JsonStore {
       status: input.status || "created",
       upstreamTaskId: input.upstreamTaskId || "",
       hCardId: input.hCardId || "",
+      providerSessionId: input.providerSessionId || "",
+      cardInfoCiphertext: input.cardInfoCiphertext || "",
       message: input.message || "",
       overwriteRecharge: Boolean(input.overwriteRecharge),
       createdAt: nowIso(),
@@ -171,6 +186,8 @@ export class JsonStore {
       orderId: input.orderId,
       userEmail: input.userEmail || "",
       tokenHash: input.tokenHash || "",
+      authDataCiphertext: input.authDataCiphertext || "",
+      rawSecretCiphertext: input.rawSecretCiphertext || "",
       authDataEncoded: input.authDataEncoded || "",
       createdAt: nowIso()
     };
@@ -209,6 +226,7 @@ export class JsonStore {
         provider: "h",
         productId: Number(productId) || 3,
         codeHash: cardCodeHash(code),
+        codeCiphertext: encryptProtected(code, "h-card-code"),
         cardMask: cardMask(code),
         status: "unused",
         orderId: "",
@@ -237,7 +255,7 @@ export class JsonStore {
     return result;
   }
 
-  listHCards(limit = 100, all = false) {
+  listHCards(limit = 100, all = false, reveal = false) {
     const cards = this.read().hCards;
     const selected = all
       ? cards
@@ -249,6 +267,7 @@ export class JsonStore {
         provider: card.provider,
         productId: card.productId,
         cardMask: card.cardMask,
+        ...(reveal && card.codeCiphertext ? { code: decryptProtected(card.codeCiphertext, "h-card-code") } : {}),
         status: card.disabledAt ? "disabled" : card.status,
         orderId: card.orderId || "",
         boundEmail: card.boundEmail || "",
@@ -261,6 +280,11 @@ export class JsonStore {
         createdAt: card.createdAt,
         usedAt: card.usedAt || ""
       }));
+  }
+
+  getHCardCode(cardId) {
+    const card = this.read().hCards.find(item => item.id === cardId);
+    return card?.codeCiphertext ? decryptProtected(card.codeCiphertext, "h-card-code") : "";
   }
 
   getHCardByCode(cardCode) {
@@ -314,7 +338,7 @@ export class JsonStore {
       return { ok: false, status: "locked", message: "卡密已锁定，请勿重复提交。" };
     }
     if (card.status === "locked") {
-      if (card.orderId) return { ok: false, status: "locked", message: "卡密已锁定，请勿重复提交。" };
+      if (card.orderId && card.orderId !== normalizedOrderId) return { ok: false, status: "locked", message: "卡密已锁定，请勿重复提交。" };
       if (!cardIdentityMatches(card, identity)) {
         return { ok: false, status: "account_mismatch", message: "卡密已绑定其他账号，请联系客服处理。" };
       }
@@ -331,6 +355,9 @@ export class JsonStore {
         boundAccountId: normalizeAccountId(identity.accountId),
         boundAt: card.boundAt || timestamp
       });
+    }
+    if (!card.codeCiphertext) {
+      card.codeCiphertext = encryptProtected(normalizedCode, "h-card-code");
     }
     Object.assign(card, {
       orderId: card.orderId || normalizedOrderId,
@@ -399,11 +426,51 @@ export class JsonStore {
     return card;
   }
 
+  getRechargeSession(orderId) {
+    return this.read().rechargeSessions.find(item => item.orderId === orderId) || null;
+  }
+
+  listRecoveryOrders() {
+    const state = this.read();
+    const sessions = new Map(state.rechargeSessions.map(session => [session.orderId, session]));
+    return state.orders
+      .filter(order => ["failed", "needs_review"].includes(order.status))
+      .sort((left, right) => String(right.updatedAt || right.createdAt).localeCompare(String(left.updatedAt || left.createdAt)))
+      .map(order => {
+        const session = sessions.get(order.id);
+        return {
+          id: order.id,
+          provider: order.provider,
+          cardMask: order.cardMask,
+          productId: order.productId,
+          status: order.status,
+          upstreamTaskId: order.upstreamTaskId || "",
+          providerSessionId: order.providerSessionId || "",
+          userEmail: session?.userEmail || "",
+          message: order.message || "",
+          createdAt: order.createdAt,
+          updatedAt: order.updatedAt,
+          hasSecret: Boolean(session?.authDataCiphertext || session?.authDataEncoded),
+          hasOriginalJson: Boolean(session?.rawSecretCiphertext || session?.authDataCiphertext || session?.authDataEncoded),
+          hCardCodeAvailable: Boolean(order.hCardId && this.getHCardCode(order.hCardId))
+        };
+      });
+  }
+
+  getRecoveryOrder(orderId) {
+    const state = this.read();
+    const order = state.orders.find(item => item.id === orderId) || null;
+    if (!order) return null;
+    const session = state.rechargeSessions.find(item => item.orderId === orderId) || null;
+    return { order, session };
+  }
+
   transitionHCard(cardId, orderId, status, extra = {}) {
     const state = this.read();
     const card = state.hCards.find(item => item.id === cardId);
     if (!card || !["locked", "reserved"].includes(card.status) || card.orderId !== orderId) return false;
-    Object.assign(card, { ...extra, status, orderId: status === "unused" ? "" : orderId, updatedAt: nowIso() });
+    const completedPatch = status === "used" ? { disabledAt: "", disabledReason: "" } : {};
+    Object.assign(card, { ...completedPatch, ...extra, status, orderId: status === "unused" ? "" : orderId, updatedAt: nowIso() });
     this.write(state);
     return true;
   }

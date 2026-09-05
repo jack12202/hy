@@ -1572,7 +1572,7 @@ window._hmt = _hmt;
       const button = document.getElementById("confirmRechargeBtn");
       const progressBox = document.getElementById("progressBox");
       const resultBox = document.getElementById("resultBox");
-      if (currentTaskId) {
+      if (currentTaskId || currentOrderId) {
         setNotice("step3Notice", "充值任务已经提交", "系统正在查询原任务，请不要重复提交卡密。", "success");
         return;
       }
@@ -1584,6 +1584,7 @@ window._hmt = _hmt;
         cardInfo: document.getElementById("cardInfo").value.trim(),
         provider: currentProvider || undefined,
         providerSessionId: currentProviderSessionId || undefined,
+        secretJsonText: document.getElementById("secretJson").value,
         userEmail: currentParsedSecret.userEmail,
         userGptToken: currentParsedSecret.userGptToken,
         fullAuthData: JSON.stringify(currentParsedSecret.fullAuthData),
@@ -1599,12 +1600,18 @@ window._hmt = _hmt;
       try {
         const data = await postJson("/api/recharge/confirm", payload);
         const task = data.data || {};
+        currentOrderId = task.orderId || "";
         if (!data.success || task.success === false || !task.taskId) {
-          setNotice("step3Notice", "充值提交失败", mapRechargeMessage(task.message || data.message, "failed"), "error");
+          const message = mapRechargeMessage(task.message || data.message, "failed");
+          setNotice("step3Notice", "充值提交失败", currentOrderId ? message + " 订单已保留，客服可以继续处理。" : message, "error");
           progressBox.style.display = "none";
+          if (currentOrderId) {
+            renderResultBox("fail", message + " 订单已保留，若人工处理成功，页面会自动更新。");
+            resultBox.style.display = "block";
+            schedulePoll(10000);
+          }
           return;
         }
-        currentOrderId = task.orderId || "";
         currentTaskId = task.taskId;
         clearTimeout(pollTimer);
         setCurrentProvider(task.provider || currentProvider, { locked: true });
@@ -1616,8 +1623,8 @@ window._hmt = _hmt;
         setNotice("step3Notice", "充值提交失败", error.message || "网络请求异常。", "error");
         progressBox.style.display = "none";
       } finally {
-        button.disabled = Boolean(currentTaskId) || !document.getElementById("overwriteRecharge").checked;
-        button.textContent = currentTaskId ? "已提交，正在查询" : "确认充值";
+        button.disabled = Boolean(currentTaskId || currentOrderId) || !document.getElementById("overwriteRecharge").checked;
+        button.textContent = currentTaskId || currentOrderId ? "已提交，正在查询" : "确认充值";
       }
     }
 
@@ -1627,7 +1634,7 @@ window._hmt = _hmt;
     }
 
     async function pollStatus(manual = false) {
-      if (!currentTaskId) return;
+      if (!currentTaskId && !currentOrderId) return;
       if (pollInFlight) {
         if (manual) showToast("正在查询充值进度，请稍候");
         return;
@@ -1682,6 +1689,7 @@ window._hmt = _hmt;
           schedulePoll(10000);
         } else {
           renderResultBox("fail", mapRechargeMessage(task.message, task.status));
+          if (currentOrderId) schedulePoll(10000);
         }
         progressBox.style.display = "none";
         resultBox.style.display = "block";

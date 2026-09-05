@@ -30,6 +30,7 @@ export const config = {
   hifupayEngine: process.env.HIFUPAY_ENGINE || "oaics",
   hifupayProductId: Number(process.env.HIFUPAY_PRODUCT_ID || 3),
   adminToken: process.env.ADMIN_TOKEN || "",
+  recoveryEncryptionKey: process.env.RECOVERY_ENCRYPTION_KEY || "",
   dataFile: process.env.DATA_FILE || path.join(rootDir, "data", "orders.json"),
   logFile: process.env.LOG_FILE || path.join(rootDir, "logs", "server.log"),
   defaultProductId: Number(process.env.DEFAULT_PRODUCT_ID || 3),

@@ -149,13 +149,13 @@ export const hifupayAdapter = {
       return {
         ok: false,
         status: 503,
-        data: { provider: "h", providerLabel: "h", message: "h通道卡片 ID 未配置，当前版本暂不自动选卡。" }
+        data: { provider: "h", providerLabel: "h", cardId: reservation.cardId, message: "h通道卡片 ID 未配置，当前版本暂不自动选卡。" }
       };
     }
 
     const session = await login();
     if (!session.ok) {
-      return { ok: false, status: session.status || 502, data: { provider: "h", providerLabel: "h", message: session.message } };
+      return { ok: false, status: session.status || 502, data: { provider: "h", providerLabel: "h", cardId: reservation.cardId, message: session.message } };
     }
 
     const raw = await requestJson(config.hifupayBaseUrl, "/api/start", {

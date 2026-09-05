@@ -2,7 +2,9 @@ import { config } from "./config.js";
 import { getProviderAdapter, listProviders } from "./providers/index.js";
 import { JsonStore } from "./store.js";
 import {
-  encodeJson,
+  decodeJson,
+  decryptSecretText,
+  encryptSecretText,
   maskCard,
   normalizeProvider,
   requiredString,
@@ -94,6 +96,45 @@ function normalizedProviderData(provider) {
 
 function logPayload(value) {
   return JSON.stringify(value);
+}
+
+function protectionKey() {
+  return config.recoveryEncryptionKey || config.adminToken || "local-development-only";
+}
+
+function encryptProtected(value, context) {
+  return encryptSecretText(value, protectionKey(), context);
+}
+
+function decryptProtected(value, context) {
+  return decryptSecretText(value, protectionKey(), context);
+}
+
+function sessionSecretText(session) {
+  return decryptProtected(session?.rawSecretCiphertext, "recharge-secret-json")
+    || decryptProtected(session?.authDataCiphertext, "recharge-auth-data")
+    || (session?.authDataEncoded ? JSON.stringify(decodeJson(session.authDataEncoded) || {}) : "");
+}
+
+function parseStoredSecret(order, session) {
+  const raw = sessionSecretText(session);
+  if (!raw) return { ok: false, message: "这笔订单没有可恢复的充值密钥。" };
+  const parsed = safeJsonParse(raw);
+  const payload = parsed.ok && parsed.value && typeof parsed.value === "object"
+    ? parsed.value
+    : { fullAuthData: raw };
+  const result = parseSecretObject({
+    ...payload,
+    userEmail: session?.userEmail || payload.userEmail,
+    fullAuthData: payload.fullAuthData || payload
+  });
+  if (!result.ok) return result;
+  return { ok: true, data: result.data, rawText: raw };
+}
+
+function storedCardCode(order) {
+  return decryptProtected(order?.cardInfoCiphertext, "recharge-card-info")
+    || (order?.hCardId ? store.getHCardCode(order.hCardId) : "");
 }
 
 async function reconcileCzgptStatus(adapter, taskData, cardInfo) {
@@ -203,8 +244,151 @@ export const rechargeService = {
     return { ok: true, status: 200, data: { cards } };
   },
 
-  listHCards(limit = 100, all = false) {
-    return { ok: true, status: 200, data: { cards: store.listHCards(limit, all) } };
+  listHCards(limit = 100, all = false, reveal = false) {
+    return { ok: true, status: 200, data: { cards: store.listHCards(limit, all, reveal) } };
+  },
+
+  listRecoverySubmissions() {
+    const recoveries = store.listRecoveryOrders();
+    return {
+      ok: true,
+      status: 200,
+      data: {
+        recoveries,
+        pendingCount: recoveries.length
+      }
+    };
+  },
+
+  getRecoverySubmission(orderId, reveal = false) {
+    const record = store.getRecoveryOrder(orderId);
+    if (!record) return { ok: false, status: 404, message: "订单不存在。" };
+    const { order, session } = record;
+    const parsed = parseStoredSecret(order, session);
+    const cardInfo = storedCardCode(order);
+    return {
+      ok: true,
+      status: 200,
+      data: {
+        orderId: order.id,
+        provider: order.provider,
+        cardMask: order.cardMask,
+        status: order.status,
+        userEmail: session?.userEmail || parsed.data?.userEmail || "",
+        message: order.message || "",
+        createdAt: order.createdAt,
+        updatedAt: order.updatedAt,
+        hasSecret: parsed.ok,
+        ...(reveal ? {
+          cardInfo,
+          secretJsonText: parsed.ok ? parsed.rawText : "",
+          parseMessage: parsed.ok ? "" : parsed.message
+        } : {})
+      }
+    };
+  },
+
+  async retryRecovery(orderId, operator = "admin") {
+    const record = store.getRecoveryOrder(orderId);
+    if (!record) return { ok: false, status: 404, message: "订单不存在。" };
+    const { order, session } = record;
+    if (!["failed", "needs_review"].includes(order.status)) {
+      return { ok: false, status: 409, message: "当前订单不是待人工处理状态。" };
+    }
+    if (order.upstreamTaskId) {
+      return { ok: false, status: 409, message: "订单已有上游任务号，请先查询原任务，避免重复扣费。" };
+    }
+    const secret = parseStoredSecret(order, session);
+    if (!secret.ok) return { ok: false, status: 400, message: secret.message };
+    const cardInfo = storedCardCode(order);
+    if (!cardInfo) return { ok: false, status: 400, message: "订单没有保存完整卡密，无法自动重试。" };
+    const adapter = getProviderAdapter(order.provider);
+    if (adapter.mode === "redirect") return { ok: false, status: 400, message: "站外通道不能从这里自动重试。" };
+
+    store.updateOrder(order.id, {
+      status: "processing",
+      message: "管理员正在重新提交充值。",
+      manualRetryAt: new Date().toISOString(),
+      manualRetryBy: operator
+    });
+    let upstream;
+    try {
+      upstream = await adapter.startRecharge({
+        cardInfo,
+        orderId: order.id,
+        userEmail: secret.data.userEmail,
+        accountId: typeof secret.data.account?.id === "string" ? secret.data.account.id : "",
+        userGptToken: secret.data.userGptToken,
+        fullAuthData: secret.data.fullAuthData,
+        providerSessionId: order.providerSessionId || "",
+        authProvider: typeof secret.data.authProvider === "string" ? secret.data.authProvider : "",
+        productId: order.productId,
+        overwriteRecharge: Boolean(order.overwriteRecharge)
+      });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "充值通道请求异常。";
+      store.updateOrder(order.id, { status: "failed", message: `重新提交失败：${message}` });
+      store.addLog({
+        orderId: order.id,
+        step: `${order.provider}.manual-retry.error`,
+        requestSummary: JSON.stringify({ provider: order.provider, cardMask: order.cardMask, operator }),
+        responseSummary: message
+      });
+      return { ok: false, status: 502, message: `重新提交失败：${message}` };
+    }
+    const upstreamTaskId = upstream.data?.taskId || "";
+    const status = upstream.ok ? upstream.data?.status || "processing" : "failed";
+    const message = upstream.data?.message || (upstream.ok ? "充值已重新提交，正在处理。" : "重新提交失败。");
+    store.updateOrder(order.id, {
+      upstreamTaskId,
+      ...(upstream.data?.cardId ? { hCardId: upstream.data.cardId } : {}),
+      status,
+      message
+    });
+    store.addLog({
+      orderId: order.id,
+      step: `${order.provider}.manual-retry`,
+      requestSummary: JSON.stringify({ provider: order.provider, cardMask: order.cardMask, operator }),
+      responseSummary: JSON.stringify({ ok: upstream.ok, status: upstream.status, taskId: upstreamTaskId, message })
+    });
+    return {
+      ok: upstream.ok,
+      status: upstream.ok ? 200 : upstream.status && upstream.status < 500 ? 200 : 502,
+      data: { orderId: order.id, taskId: upstreamTaskId, status, message, ...normalizedProviderData(order.provider) }
+    };
+  },
+
+  markRecoverySuccess(orderId, operator = "admin", message = "人工充值成功，系统已同步完成。") {
+    const record = store.getRecoveryOrder(orderId);
+    if (!record) return { ok: false, status: 404, message: "订单不存在。" };
+    const { order } = record;
+    if (order.status === "success") {
+      return { ok: true, status: 200, data: { orderId: order.id, status: "success", message: order.message } };
+    }
+    if (order.provider === "h") {
+      const hCard = order.hCardId ? null : store.getHCardByCode(storedCardCode(order));
+      const hCardId = order.hCardId || hCard?.id || "";
+      const completed = hCardId ? store.completeHCard(hCardId, order.id) : false;
+      if (!completed) {
+        const current = store.getHCardByCode(storedCardCode(order));
+        if (current?.status !== "used") {
+          return { ok: false, status: 409, message: "卡密当前不是锁定状态，无法同步为已使用。" };
+        }
+      }
+    }
+    const updated = store.updateOrder(order.id, {
+      status: "success",
+      message,
+      manualCompletedAt: new Date().toISOString(),
+      manualCompletedBy: operator
+    });
+    store.addLog({
+      orderId: order.id,
+      step: "manual.success",
+      requestSummary: JSON.stringify({ operator }),
+      responseSummary: message
+    });
+    return { ok: true, status: 200, data: { orderId: updated.id, status: updated.status, message: updated.message } };
   },
 
   unlockHCard(cardId) {
@@ -321,6 +505,8 @@ export const rechargeService = {
       provider: selectedProvider,
       cardMask,
       productId: Number(productId || config.defaultProductId),
+      providerSessionId: input.providerSessionId || "",
+      cardInfoCiphertext: encryptProtected(cardInfo.trim(), "recharge-card-info"),
       overwriteRecharge,
       status: "processing",
       message: `任务已创建，等待${providerData.providerLabel}处理。`
@@ -330,7 +516,8 @@ export const rechargeService = {
       orderId: order.id,
       userEmail: secret.userEmail,
       tokenHash: sha256(secret.userGptToken),
-      authDataEncoded: encodeJson(secret.fullAuthData)
+      authDataCiphertext: encryptProtected(JSON.stringify(secret.fullAuthData), "recharge-auth-data"),
+      rawSecretCiphertext: encryptProtected(input.secretJsonText || JSON.stringify(secret.fullAuthData), "recharge-secret-json")
     });
 
     const upstreamPayload = {
@@ -359,7 +546,30 @@ export const rechargeService = {
       responseSummary: "pending"
     });
 
-    const upstream = await adapter.startRecharge(upstreamPayload);
+    let upstream;
+    try {
+      upstream = await adapter.startRecharge(upstreamPayload);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "充值通道请求异常。";
+      store.updateOrder(order.id, { status: "failed", message: `充值提交失败：${message}` });
+      store.addLog({
+        orderId: order.id,
+        step: `${selectedProvider}.start.error`,
+        requestSummary: JSON.stringify({ provider: selectedProvider, cardMask, userEmail: secret.userEmail }),
+        responseSummary: message
+      });
+      return {
+        ok: false,
+        status: 200,
+        data: {
+          orderId: order.id,
+          taskId: "",
+          status: "failed",
+          message: `充值提交失败：${message}`,
+          ...providerData
+        }
+      };
+    }
     const upstreamTaskId = upstream.data?.taskId || "";
     const message = upstream.data?.message || "充值已提交，正在处理。";
     const status = upstream.ok ? upstream.data?.status || "processing" : "failed";

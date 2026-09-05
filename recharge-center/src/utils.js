@@ -41,6 +41,39 @@ export function encodeJson(value) {
   return Buffer.from(JSON.stringify(value), "utf8").toString("base64");
 }
 
+function deriveSecretKey(secret, context) {
+  return crypto.createHash("sha256").update(`${context}:${secret || "local-development-only"}`, "utf8").digest();
+}
+
+export function encryptSecretText(value, secret, context = "gptc-recovery") {
+  const key = deriveSecretKey(secret, context);
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv("aes-256-gcm", key, iv);
+  const encrypted = Buffer.concat([cipher.update(String(value || ""), "utf8"), cipher.final()]);
+  return ["v1", iv.toString("base64url"), cipher.getAuthTag().toString("base64url"), encrypted.toString("base64url")].join(".");
+}
+
+export function decryptSecretText(value, secret, context = "gptc-recovery") {
+  if (typeof value !== "string" || !value.startsWith("v1.")) return "";
+  const [, ivText, tagText, encryptedText] = value.split(".");
+  try {
+    const key = deriveSecretKey(secret, context);
+    const decipher = crypto.createDecipheriv("aes-256-gcm", key, Buffer.from(ivText, "base64url"));
+    decipher.setAuthTag(Buffer.from(tagText, "base64url"));
+    return Buffer.concat([decipher.update(Buffer.from(encryptedText, "base64url")), decipher.final()]).toString("utf8");
+  } catch {
+    return "";
+  }
+}
+
+export function decodeJson(value) {
+  try {
+    return JSON.parse(Buffer.from(String(value || ""), "base64").toString("utf8"));
+  } catch {
+    return null;
+  }
+}
+
 export function requiredString(value) {
   return typeof value === "string" && value.trim() !== "";
 }

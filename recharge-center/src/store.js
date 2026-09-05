@@ -5,6 +5,7 @@ import { config } from "./config.js";
 import { decryptSecretText, encryptSecretText } from "./utils.js";
 
 const PROVIDER_CONFIG_VERSION = 2;
+const RECHARGE_SECRET_RETENTION_DAYS = 45;
 
 function ensureDir(filePath) {
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
@@ -272,6 +273,9 @@ export class JsonStore {
         lockReason: "",
         disabledAt: "",
         disabledReason: "",
+        archivedAt: "",
+        hasSubmission: false,
+        submittedAt: "",
         expiresAt,
         createdAt,
         updatedAt: createdAt
@@ -291,8 +295,8 @@ export class JsonStore {
     return result;
   }
 
-  listHCards(limit = 100, all = false, reveal = false) {
-    const cards = this.read().hCards;
+  listHCards(limit = 100, all = false, reveal = false, includeArchived = false) {
+    const cards = this.read().hCards.filter(card => includeArchived || !card.archivedAt);
     const selected = all
       ? cards
       : cards.slice(-Math.min(Math.max(Number(limit) || 100, 1), 500));
@@ -312,6 +316,9 @@ export class JsonStore {
         lockReason: card.lockReason || "",
         disabledAt: card.disabledAt || "",
         disabledReason: card.disabledReason || "",
+        archivedAt: card.archivedAt || "",
+        hasSubmission: Boolean(card.hasSubmission || card.submittedAt || card.boundAt || card.usedAt),
+        submittedAt: card.submittedAt || card.boundAt || "",
         expiresAt: card.expiresAt || "",
         createdAt: card.createdAt,
         usedAt: card.usedAt || ""
@@ -574,6 +581,7 @@ export class JsonStore {
     const card = this.getHCardByCode(cardCode);
     if (!card) return { ok: false, status: "not_found", message: "激活码不存在，请检查后重新输入。" };
 
+    if (card.archivedAt) return { ok: false, status: "archived", message: "卡密已归档，请联系客服处理。" };
     if (card.disabledAt) return { ok: false, status: "disabled", message: "卡密已被后台禁用，请联系客服处理。" };
     if (card.status === "unused" && card.expiresAt && Date.parse(card.expiresAt) <= Date.now()) {
       this.updateHCard(card.id, { status: "expired" });
@@ -602,6 +610,7 @@ export class JsonStore {
     const state = this.read();
     const card = state.hCards.find(item => item.codeHash === cardCodeHash(normalizedCode));
     if (!card) return { ok: false, status: "not_found", message: "激活码不存在，请检查后重新输入。" };
+    if (card.archivedAt) return { ok: false, status: "archived", message: "卡密已归档，请联系客服处理。" };
     if (card.disabledAt) return { ok: false, status: "disabled", message: "卡密已被后台禁用，请联系客服处理。" };
     if (card.status === "unused" && card.expiresAt && Date.parse(card.expiresAt) <= Date.now()) {
       card.status = "expired";
@@ -638,6 +647,8 @@ export class JsonStore {
     Object.assign(card, {
       orderId: card.orderId || normalizedOrderId,
       lockReason: "recharge_submitted",
+      hasSubmission: true,
+      submittedAt: card.submittedAt || timestamp,
       updatedAt: timestamp
     });
     this.write(state);
@@ -693,6 +704,37 @@ export class JsonStore {
     return { ok: true, status: card.disabledAt ? "disabled" : card.status, cardId: card.id };
   }
 
+  archiveHCard(cardId, archived = true) {
+    const state = this.read();
+    const card = state.hCards.find(item => item.id === cardId);
+    if (!card) return { ok: false, status: "not_found", message: "卡密不存在。" };
+    Object.assign(card, { archivedAt: archived ? (card.archivedAt || nowIso()) : "", updatedAt: nowIso() });
+    this.write(state);
+    return { ok: true, status: archived ? "archived" : (card.disabledAt ? "disabled" : card.status), cardId: card.id };
+  }
+
+  deleteHCard(cardId) {
+    const state = this.read();
+    const index = state.hCards.findIndex(item => item.id === cardId);
+    if (index < 0) return { ok: false, status: "not_found", message: "卡密不存在。" };
+    const card = state.hCards[index];
+    const code = card.codeCiphertext ? decryptProtected(card.codeCiphertext, "h-card-code") : "";
+    const hasMatchingOrder = state.orders.some(order => {
+      if (order.hCardId === card.id || (card.orderId && order.id === card.orderId)) return true;
+      const orderCode = order.cardInfoCiphertext ? decryptProtected(order.cardInfoCiphertext, "recharge-card-info") : "";
+      return Boolean(code && orderCode && cardCodeHash(orderCode.trim().toUpperCase()) === card.codeHash);
+    });
+    if (card.hasSubmission || card.submittedAt || card.boundAt || card.usedAt || hasMatchingOrder) {
+      return { ok: false, status: "has_submission", message: "这张卡密提交过充值资料，只能归档，不能删除。" };
+    }
+    if (!["unused", "expired"].includes(card.status) && !card.disabledAt) {
+      return { ok: false, status: card.status, message: "只有未使用、已过期或已禁用且没有提交记录的卡密可以删除。" };
+    }
+    state.hCards.splice(index, 1);
+    this.write(state);
+    return { ok: true, status: "deleted", cardId };
+  }
+
   updateHCard(cardId, patch) {
     const state = this.read();
     const card = state.hCards.find(item => item.id === cardId);
@@ -706,11 +748,33 @@ export class JsonStore {
     return this.read().rechargeSessions.find(item => item.orderId === orderId) || null;
   }
 
-  listRecoveryOrders() {
+  purgeExpiredRechargeSecrets(retentionDays = RECHARGE_SECRET_RETENTION_DAYS) {
+    const state = this.read();
+    const cutoff = Date.now() - Math.max(Number(retentionDays) || RECHARGE_SECRET_RETENTION_DAYS, 1) * 24 * 60 * 60 * 1000;
+    const terminalOrders = new Map(state.orders
+      .filter(order => order.status === "success")
+      .map(order => [order.id, Date.parse(order.manualCompletedAt || order.updatedAt || order.createdAt)]));
+    let purged = 0;
+    for (const session of state.rechargeSessions) {
+      const completedAt = terminalOrders.get(session.orderId);
+      if (!Number.isFinite(completedAt) || completedAt > cutoff) continue;
+      if (session.rawSecretCiphertext || session.authDataCiphertext || session.authDataEncoded) {
+        session.rawSecretCiphertext = "";
+        session.authDataCiphertext = "";
+        session.authDataEncoded = "";
+        session.secretPurgedAt = nowIso();
+        purged += 1;
+      }
+    }
+    if (purged) this.write(state);
+    return purged;
+  }
+
+  listRechargeOrders() {
+    this.purgeExpiredRechargeSecrets();
     const state = this.read();
     const sessions = new Map(state.rechargeSessions.map(session => [session.orderId, session]));
     return state.orders
-      .filter(order => ["failed", "needs_review"].includes(order.status))
       .sort((left, right) => String(right.updatedAt || right.createdAt).localeCompare(String(left.updatedAt || left.createdAt)))
       .map(order => {
         const session = sessions.get(order.id);
@@ -731,6 +795,10 @@ export class JsonStore {
           hCardCodeAvailable: Boolean(order.hCardId && this.getHCardCode(order.hCardId))
         };
       });
+  }
+
+  listRecoveryOrders() {
+    return this.listRechargeOrders().filter(order => ["failed", "needs_review"].includes(order.status));
   }
 
   getRecoveryOrder(orderId) {

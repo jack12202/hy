@@ -244,8 +244,8 @@ export const rechargeService = {
     return { ok: true, status: 200, data: { cards } };
   },
 
-  listHCards(limit = 100, all = false, reveal = false) {
-    return { ok: true, status: 200, data: { cards: store.listHCards(limit, all, reveal) } };
+  listHCards(limit = 100, all = false, reveal = false, includeArchived = false) {
+    return { ok: true, status: 200, data: { cards: store.listHCards(limit, all, reveal, includeArchived) } };
   },
 
   async refreshHifupayCards() {
@@ -299,6 +299,19 @@ export const rechargeService = {
       data: {
         recoveries,
         pendingCount: recoveries.length
+      }
+    };
+  },
+
+  listRechargeSubmissions() {
+    const records = store.listRechargeOrders();
+    return {
+      ok: true,
+      status: 200,
+      data: {
+        records,
+        totalCount: records.length,
+        pendingCount: records.filter(item => ["failed", "needs_review"].includes(item.status)).length
       }
     };
   },
@@ -467,6 +480,16 @@ export const rechargeService = {
       data: result.ok ? { cardId: result.cardId, status: result.status } : undefined,
       message: result.message
     };
+  },
+
+  archiveHCard(cardId, archived = true) {
+    const result = store.archiveHCard(cardId, archived);
+    return { ok: result.ok, status: result.ok ? 200 : 404, data: result.ok ? { cardId: result.cardId, status: result.status } : undefined, message: result.message };
+  },
+
+  deleteHCard(cardId) {
+    const result = store.deleteHCard(cardId);
+    return { ok: result.ok, status: result.ok ? 200 : result.status === "not_found" ? 404 : 409, data: result.ok ? { cardId: result.cardId, status: result.status } : undefined, message: result.message };
   },
 
   async verifyCard(cardInfo, provider) {

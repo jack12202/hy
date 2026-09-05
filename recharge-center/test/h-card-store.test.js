@@ -63,3 +63,47 @@ test("h cards bind once, stay locked on failure, and support admin unlock/disabl
   assert.equal(store.verifyHCard(cards[2].code).status, "used");
   assert.equal(store.unlockHCard(third.cardId).status, "used");
 });
+
+test("submitted h cards can only be archived while untouched cards can be deleted", async t => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "gptc-h-card-delete-test-"));
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+  const { JsonStore } = await import("../src/store.js");
+  const store = new JsonStore(path.join(tempDir, "orders.json"));
+  const [submitted, untouched] = store.createHCards({ count: 2 });
+  const order = store.createOrder({ provider: "h", status: "failed" });
+  store.createRechargeSession({ orderId: order.id, userEmail: "buyer@example.com", rawSecretCiphertext: "encrypted" });
+  const reserved = store.reserveHCard(submitted.code, order.id, { email: "buyer@example.com", accountId: "account" });
+
+  assert.equal(reserved.ok, true);
+  assert.equal(store.deleteHCard(reserved.cardId).status, "has_submission");
+  assert.equal(store.archiveHCard(reserved.cardId, true).ok, true);
+  assert.equal(store.listHCards(100, true, false).some(card => card.id === reserved.cardId), false);
+  assert.equal(store.listHCards(100, true, false, true).find(card => card.id === reserved.cardId).archivedAt.length > 0, true);
+  assert.equal(store.verifyHCard(submitted.code).status, "archived");
+  assert.equal(store.reserveHCard(submitted.code, order.id, { email: "buyer@example.com", accountId: "account" }).status, "archived");
+  assert.equal(store.archiveHCard(reserved.cardId, false).ok, true);
+
+  const untouchedId = store.getHCardByCode(untouched.code).id;
+  assert.equal(store.deleteHCard(untouchedId).ok, true);
+  assert.equal(store.getHCardByCode(untouched.code), null);
+});
+
+test("all recharge records are listed and successful secrets expire after 45 days", async t => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "gptc-recharge-record-test-"));
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+  const dataFile = path.join(tempDir, "orders.json");
+  const { JsonStore } = await import("../src/store.js");
+  const store = new JsonStore(dataFile);
+  const success = store.createOrder({ provider: "h", status: "success" });
+  const failed = store.createOrder({ provider: "j", status: "failed" });
+  store.createRechargeSession({ orderId: success.id, userEmail: "success@example.com", rawSecretCiphertext: "old-secret" });
+  store.createRechargeSession({ orderId: failed.id, userEmail: "failed@example.com", rawSecretCiphertext: "keep-secret" });
+  const state = JSON.parse(fs.readFileSync(dataFile, "utf8"));
+  state.orders.find(item => item.id === success.id).updatedAt = "2020-01-01T00:00:00.000Z";
+  fs.writeFileSync(dataFile, JSON.stringify(state, null, 2));
+
+  const records = store.listRechargeOrders();
+  assert.equal(records.length, 2);
+  assert.equal(records.find(item => item.id === success.id).hasOriginalJson, false);
+  assert.equal(records.find(item => item.id === failed.id).hasOriginalJson, true);
+});

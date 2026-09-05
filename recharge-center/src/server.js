@@ -365,7 +365,7 @@ function serveHCardAdmin(res) {
       return selected === "custom" ? document.getElementById("customSource").value.trim() : selected;
     }
     function outputText(type) {
-      return generatedCards.map(card => type === "links" ? card.link : card.code).join("\n");
+      return generatedCards.map(card => type === "links" ? card.link : card.code).join("\\n");
     }
     async function copyOutput(type) {
       if (!generatedCards.length) return;

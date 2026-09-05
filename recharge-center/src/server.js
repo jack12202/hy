@@ -313,7 +313,7 @@ function serveHCardAdmin(res) {
       <div class="page-actions"><a class="action-link" href="/admin/cards/library">卡密库</a><a class="action-link" href="/admin/hifupay/cards">嗨付卡池</a><a class="action-link" href="/admin/recoveries">充值记录</a></div>
       <div class="summary" id="batchSummary"></div>
       <div class="batch-meta" id="batchMeta" hidden></div>
-      <div class="output-actions" id="outputActions"><button class="secondary" id="copyCodes">复制全部卡密</button><button class="secondary" id="copyLinks">复制全部链接</button></div>
+      <div class="output-actions" id="outputActions"><button class="secondary" id="copyCodes">复制全部卡密</button><button class="secondary" id="copyLinks">复制全部链接</button><button class="secondary" id="downloadLinkZip">下载链接 ZIP</button></div>
       <div class="generated" id="generated"></div>
     </section>
   </main>
@@ -375,6 +375,49 @@ function serveHCardAdmin(res) {
     function outputText(type) {
       return generatedCards.map(card => type === "links" ? card.link : card.code).join("\\n");
     }
+    function downloadBlob(blob, name) {
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(blob);
+      link.download = name;
+      link.click();
+      window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+    }
+    function concatBytes(parts) {
+      const output = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0));
+      let offset = 0;
+      parts.forEach(part => { output.set(part, offset); offset += part.length; });
+      return output;
+    }
+    function crc32(bytes) {
+      let crc = 0xffffffff;
+      for (const byte of bytes) {
+        crc ^= byte;
+        for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
+      }
+      return (crc ^ 0xffffffff) >>> 0;
+    }
+    function zipLinks() {
+      if (!generatedCards.length) return;
+      const encoder = new TextEncoder();
+      const u16 = value => new Uint8Array([value & 255, (value >>> 8) & 255]);
+      const u32 = value => new Uint8Array([value & 255, (value >>> 8) & 255, (value >>> 16) & 255, (value >>> 24) & 255]);
+      const localParts = [], centralParts = [];
+      let offset = 0;
+      const stamp = new Date().toLocaleDateString("sv-SE").replaceAll("-", "");
+      const source = (currentSource() || "未分类").replace(/[\\/:*?"<>|]/g, "-");
+      generatedCards.forEach((card, index) => {
+        const name = encoder.encode(stamp + "-" + source + "-" + String(card.sequence || index + 1).padStart(3, "0") + "-" + String(card.code || "").slice(-4) + ".txt");
+        const data = encoder.encode(String(card.link || "") + "\\n");
+        const checksum = crc32(data);
+        const local = concatBytes([new Uint8Array([80,75,3,4,20,0,0,0,0,0,0,0,0,0]), u32(checksum), u32(data.length), u32(data.length), u16(name.length), u16(0), name, data]);
+        const central = concatBytes([new Uint8Array([80,75,1,2,20,0,20,0,0,0,0,0,0,0,0,0]), u32(checksum), u32(data.length), u32(data.length), u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset), name]);
+        localParts.push(local); centralParts.push(central); offset += local.length;
+      });
+      const central = concatBytes(centralParts);
+      const end = concatBytes([new Uint8Array([80,75,5,6,0,0,0,0]), u16(generatedCards.length), u16(generatedCards.length), u32(central.length), u32(offset), u16(0)]);
+      downloadBlob(new Blob([concatBytes([...localParts, central, end])], { type: "application/zip" }), stamp + "-" + source + "-链接.zip");
+      setStatus("已下载链接 ZIP，每张卡密一个 TXT 文件。");
+    }
     async function copyOutput(type) {
       if (!generatedCards.length) return;
       await navigator.clipboard.writeText(outputText(type));
@@ -401,6 +444,7 @@ function serveHCardAdmin(res) {
     });
     document.getElementById("copyCodes").onclick = () => copyOutput("codes");
     document.getElementById("copyLinks").onclick = () => copyOutput("links");
+    document.getElementById("downloadLinkZip").onclick = zipLinks;
 
     document.getElementById("generate").addEventListener("click", async () => {
       try {

@@ -292,6 +292,7 @@ export class JsonStore {
       state.hCards.push(card);
       result.push({
         id: card.id,
+        sequence: index + 1,
         code,
         cardMask: card.cardMask,
         status: card.status,

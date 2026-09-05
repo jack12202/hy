@@ -297,7 +297,8 @@ export const rechargeService = {
   },
 
   listRecoverySubmissions() {
-    const recoveries = store.listRecoveryOrders();
+    const cutoff = Date.parse("2026-09-04T16:00:00.000Z");
+    const recoveries = store.listRecoveryOrders().filter(item => Date.parse(item.createdAt) >= cutoff);
     return {
       ok: true,
       status: 200,
@@ -309,8 +310,9 @@ export const rechargeService = {
   },
 
   listRechargeSubmissions() {
+    const cutoff = Date.parse("2026-09-04T16:00:00.000Z");
     store.purgeRechargeSecretsBefore("2026-09-04T16:00:00.000Z");
-    const records = store.listRechargeOrders();
+    const records = store.listRechargeOrders().filter(item => Date.parse(item.createdAt) >= cutoff);
     return {
       ok: true,
       status: 200,

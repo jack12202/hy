@@ -256,6 +256,7 @@ function serveHCardAdmin(res) {
     h1 { font-size: 26px; }
     h2 { font-size: 18px; }
     p, .hint { color: #64748b; line-height: 1.6; }
+    .auth-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 12px; align-items: end; }
     .form { display: grid; grid-template-columns: 1fr 1fr auto; gap: 12px; align-items: end; margin-top: 18px; }
     label { display: grid; gap: 8px; font-weight: 800; }
     input, select { width: 100%; min-height: 44px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 0 12px; font: inherit; background:#fff; }
@@ -281,7 +282,7 @@ function serveHCardAdmin(res) {
     th, td { padding: 10px 8px; text-align: left; border-bottom: 1px solid #e2e8f0; white-space: nowrap; }
     th { color: #475569; }
     .hint { margin: 10px 0 0; font-size: 13px; }
-    @media (max-width: 640px) { .form { grid-template-columns: 1fr; } button { width: 100%; } section { padding: 16px; } }
+    @media (max-width: 640px) { .auth-row, .form { grid-template-columns: 1fr; } button { width: 100%; } section { padding: 16px; } }
   </style>
 </head>
 <body>
@@ -289,13 +290,16 @@ function serveHCardAdmin(res) {
     <section>
       <h1>卡密工作台</h1>
       <p>按销售来源生成卡密，并复制或下载适合 Excel、卡网和客户交付的格式。</p>
-      <label>
-        管理密码
-        <input id="adminToken" type="password" autocomplete="current-password" placeholder="请输入 ADMIN_TOKEN">
-      </label>
+      <div class="auth-row">
+        <label>
+          管理密码
+          <input id="adminToken" type="password" autocomplete="current-password" placeholder="请输入 ADMIN_TOKEN">
+        </label>
+        <button class="secondary" id="verifyAdmin" type="button">验证管理密码</button>
+      </div>
       <div class="form">
         <label>生成数量<input id="count" type="number" min="1" max="100" value="10"></label>
-        <label>销售来源<select id="source"><option>卡网</option><option>微信</option><option>漫飞公司</option><option value="custom">其他</option></select><input id="customSource" type="text" maxlength="40" placeholder="输入自定义来源" hidden></label>
+        <label>销售来源<select id="source"><option>卡网</option><option>微信</option><option>漫飞公司</option><option value="custom">其他</option></select><input id="customSource" type="text" maxlength="40" placeholder="请备注来源，例如：秋风店铺" hidden></label>
         <button id="generate" type="button">生成卡密</button>
       </div>
       <div class="status" id="statusBox">输入管理密码，选择数量和来源后生成。</div>
@@ -379,8 +383,24 @@ function serveHCardAdmin(res) {
       link.click();
       URL.revokeObjectURL(link.href);
     }
-    document.getElementById("source").addEventListener("change", event => {
-      document.getElementById("customSource").hidden = event.target.value !== "custom";
+    function syncCustomSource() {
+      const source = document.getElementById("source");
+      const customSource = document.getElementById("customSource");
+      const isCustom = source.value === "custom";
+      customSource.hidden = !isCustom;
+      customSource.required = isCustom;
+    }
+    document.getElementById("source").addEventListener("change", syncCustomSource);
+    window.addEventListener("pageshow", syncCustomSource);
+    syncCustomSource();
+    tokenInput.addEventListener("input", () => {
+      setStatus("点击“验证管理密码”后即可确认是否正确。");
+    });
+    document.getElementById("verifyAdmin").addEventListener("click", async () => {
+      try {
+        await api("/api/admin/h-cards?limit=1");
+        setStatus("管理密码验证成功，可以生成卡密。");
+      } catch (error) { setStatus(error.message || "管理密码验证失败。", true); }
     });
     document.getElementById("copyCodes").onclick = () => copyOutput("codes");
     document.getElementById("copyLinks").onclick = () => copyOutput("links");

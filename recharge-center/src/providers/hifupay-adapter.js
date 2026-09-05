@@ -74,8 +74,14 @@ function extractCards(raw) {
 function normalizeStatus(raw) {
   const body = raw?.data && typeof raw.data === "object" ? raw.data : {};
   const upstreamStatus = String(body.status || "unknown").toLowerCase();
-  const status = upstreamStatus === "completed"
-    ? body.paymentConfirmed === false ? "needs_review" : "success"
+  const logs = Array.isArray(body.logs) ? body.logs : [];
+  const logText = logs.map(item => typeof item === "string" ? item : JSON.stringify(item)).join("\n");
+  const paymentSucceeded = body.paymentConfirmed === true || /payment succeeded|支付成功|充值已成功/i.test(logText);
+  const cancellationFailed = /取消自动续费失败|关闭自动续费失败|renewal_cancellation.*(?:fail|404)/i.test(logText);
+  const status = paymentSucceeded
+    ? "success"
+    : upstreamStatus === "completed"
+      ? body.paymentConfirmed === false ? "needs_review" : "success"
     : upstreamStatus === "failed"
       ? "failed"
       : upstreamStatus === "queued" || upstreamStatus === "pending"
@@ -88,11 +94,13 @@ function normalizeStatus(raw) {
     providerLabel: "h",
     status,
     upstreamStatus,
-    message: body.error || body.message || (status === "success" ? "充值成功。" : "充值处理中，请稍候。"),
+    message: paymentSucceeded && cancellationFailed
+      ? "充值成功，但自动续费关闭失败，请用户手动关闭自动续费。"
+      : body.error || body.message || (status === "success" ? "充值成功。" : "充值处理中，请稍候。"),
     account: typeof body.account === "string" ? body.account : "",
-    paymentConfirmed: body.paymentConfirmed === true,
+    paymentConfirmed: paymentSucceeded,
     autoCancelDone: body.autoCancelDone === true,
-    logs: Array.isArray(body.logs) ? body.logs : [],
+    logs,
     raw: body
   };
 }
@@ -205,7 +213,7 @@ export const hifupayAdapter = {
       orderId,
       plan,
       identity: accountIdentity(fullAuthData, userEmail, accountId),
-      estimatedChargeUsd: plan === "plus" ? config.hifupayEstimatedPlusChargeUsd : config.hifupayEstimatedProChargeUsd,
+      estimatedChargeUsd: hCardStore.getHifupayEstimatedCharge(plan),
       preferredCardId: process.env.HIFUPAY_CARD_ID || config.hifupayCardId
     });
     if (!hifupayReservation.ok) {

@@ -250,7 +250,7 @@ function serveHCardAdmin(res) {
   <style>
     * { box-sizing: border-box; }
     body { margin: 0; min-height: 100vh; padding: 20px; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #132033; background: #f4f7fb; }
-    main { width: min(960px, 100%); margin: 0 auto; }
+    main { width: min(1100px, 100%); margin: 0 auto; }
     section { background: #fff; border: 1px solid #dbe4ee; border-radius: 14px; box-shadow: 0 18px 48px rgba(15, 23, 42, 0.08); padding: 22px; margin-bottom: 16px; }
     h1, h2 { margin: 0 0 8px; }
     h1 { font-size: 26px; }
@@ -263,7 +263,7 @@ function serveHCardAdmin(res) {
     button.secondary { color: #0f766e; background: #ecfdf5; border: 1px solid #99f6e4; }
     .status { margin-top: 16px; padding: 12px; border-radius: 10px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; line-height: 1.6; white-space: pre-wrap; }
     .status.error { background: #fff1f2; border-color: #fda4af; color: #9f1239; }
-    .generated { display: grid; gap: 10px; margin-top: 14px; }
+    .generated { display: grid; gap: 10px; margin-top: 14px; max-height: 420px; overflow:auto; }
     .card { padding: 12px; border: 1px solid #dbe4ee; border-radius: 10px; background: #f8fafc; overflow-wrap: anywhere; }
     .card code { display: block; color: #0f172a; font-weight: 900; }
     .card a { display: block; margin-top: 5px; color: #2563eb; font-size: 13px; }
@@ -272,6 +272,8 @@ function serveHCardAdmin(res) {
     .row-actions button.danger { color: #9f1239; background: #fff1f2; border: 1px solid #fda4af; }
     .action-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 10px; color: #0f766e; background: #ecfdf5; border: 1px solid #99f6e4; font-weight: 900; text-decoration: none; }
     .page-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
+    .output-actions { display:none; gap:10px; flex-wrap:wrap; margin-top:14px; padding-top:14px; border-top:1px solid #e2e8f0; }
+    .summary { display:none; margin-top:16px; padding:14px; border-radius:12px; background:#f0fdfa; color:#115e59; font-weight:800; }
     .card-code { display: inline-block; min-width: 220px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-weight: 900; }
     .copy-card { min-height: 32px !important; padding: 0 9px !important; margin-left: 8px; font-size: 12px !important; }
     .table-wrap { overflow-x: auto; }
@@ -285,19 +287,21 @@ function serveHCardAdmin(res) {
 <body>
   <main>
     <section>
-      <h1>h 通道卡密</h1>
-      <p>只在这里生成 h 通道卡密。卡密只展示一次，数据库只保存哈希；链接和卡密都要按密码保管。</p>
+      <h1>卡密工作台</h1>
+      <p>按销售来源生成卡密，并复制或下载适合 Excel、卡网和客户交付的格式。</p>
       <label>
         管理密码
         <input id="adminToken" type="password" autocomplete="current-password" placeholder="请输入 ADMIN_TOKEN">
       </label>
       <div class="form">
         <label>生成数量<input id="count" type="number" min="1" max="100" value="10"></label>
-        <label>有效天数<input id="expiresInDays" type="number" min="0" value="0" placeholder="0 表示永久"></label>
+        <label>销售来源<select id="source"><option>卡网</option><option>微信</option><option>漫飞公司</option><option value="custom">其他</option></select><input id="customSource" type="text" maxlength="40" placeholder="输入自定义来源" hidden></label>
         <button id="generate" type="button">生成卡密</button>
       </div>
-      <div class="status" id="statusBox">输入管理密码后，可以生成或查看卡密。</div>
+      <div class="status" id="statusBox">输入管理密码，选择数量和来源后生成。</div>
       <div class="page-actions"><a class="action-link" href="/admin/cards/library">卡密库</a><a class="action-link" href="/admin/hifupay/cards">嗨付卡池</a><a class="action-link" href="/admin/recoveries">充值记录</a></div>
+      <div class="summary" id="batchSummary"></div>
+      <div class="output-actions" id="outputActions"><button class="secondary" id="copyCodes">复制全部卡密</button><button class="secondary" id="copyLinks">复制全部链接</button><button class="secondary" id="downloadCodes">下载卡密 TXT</button><button class="secondary" id="downloadLinks">下载链接 TXT</button></div>
       <div class="generated" id="generated"></div>
     </section>
   </main>
@@ -305,6 +309,7 @@ function serveHCardAdmin(res) {
     const tokenInput = document.getElementById("adminToken");
     const statusBox = document.getElementById("statusBox");
     const generated = document.getElementById("generated");
+    let generatedCards = [];
     const params = new URLSearchParams(window.location.search);
     const hashParams = new URLSearchParams(window.location.hash.replace(/^#/, ""));
     const tokenFromHash = hashParams.get("token") || "";
@@ -351,11 +356,49 @@ function serveHCardAdmin(res) {
       return data.data;
     }
 
+    function currentSource() {
+      const selected = document.getElementById("source").value;
+      return selected === "custom" ? document.getElementById("customSource").value.trim() : selected;
+    }
+    function outputText(type) {
+      return generatedCards.map(card => type === "links" ? card.link : card.code).join("\n");
+    }
+    async function copyOutput(type) {
+      if (!generatedCards.length) return;
+      await navigator.clipboard.writeText(outputText(type));
+      setStatus(type === "links" ? "全部充值链接已复制。" : "全部卡密已复制，可直接粘贴到 Excel。");
+    }
+    function downloadOutput(type) {
+      if (!generatedCards.length) return;
+      const source = currentSource() || "未分类";
+      const date = new Date().toLocaleDateString("sv-SE");
+      const name = date + "-" + source.replace(/[\\/:*?\"<>|]/g, "-") + "-" + generatedCards.length + "张-" + (type === "links" ? "充值链接" : "卡密") + ".txt";
+      const link = document.createElement("a");
+      link.href = URL.createObjectURL(new Blob([outputText(type)], { type: "text/plain;charset=utf-8" }));
+      link.download = name;
+      link.click();
+      URL.revokeObjectURL(link.href);
+    }
+    document.getElementById("source").addEventListener("change", event => {
+      document.getElementById("customSource").hidden = event.target.value !== "custom";
+    });
+    document.getElementById("copyCodes").onclick = () => copyOutput("codes");
+    document.getElementById("copyLinks").onclick = () => copyOutput("links");
+    document.getElementById("downloadCodes").onclick = () => downloadOutput("codes");
+    document.getElementById("downloadLinks").onclick = () => downloadOutput("links");
+
     document.getElementById("generate").addEventListener("click", async () => {
       try {
-        const data = await api("/api/admin/h-cards", { method: "POST", body: JSON.stringify({ count: Number(document.getElementById("count").value), expiresInDays: Number(document.getElementById("expiresInDays").value), productId: 3 }) });
+        const source = currentSource();
+        if (!source) throw new Error("请输入销售来源。");
+        const data = await api("/api/admin/h-cards", { method: "POST", body: JSON.stringify({ count: Number(document.getElementById("count").value), source, productId: 3 }) });
+        generatedCards = data.cards;
         generated.innerHTML = data.cards.map(card => '<div class="card"><code>' + escapeHtml(card.code) + '</code><a href="' + escapeHtml(card.link) + '" target="_blank" rel="noreferrer">' + escapeHtml(card.link) + '</a></div>').join("");
-        setStatus("已生成 " + data.cards.length + " 张卡密。请立即复制并保存，刷新后不会再次显示完整卡密。");
+        document.getElementById("outputActions").style.display = "flex";
+        const summary = document.getElementById("batchSummary");
+        summary.style.display = "block";
+        summary.textContent = "本批次：" + source + " · " + data.cards.length + " 张 · " + new Date().toLocaleString("zh-CN", { hour12:false });
+        setStatus("已生成 " + data.cards.length + " 张卡密。请立即复制或下载保存。");
       } catch (error) { setStatus(error.message, true); }
     });
   </script>
@@ -393,8 +436,10 @@ function serveHCardLibraryAdmin(res) {
     button.danger { color: #9f1239; background: #fff1f2; border: 1px solid #fda4af; }
     button:disabled { opacity: .55; cursor: wait; }
     label { display: grid; gap: 8px; max-width: 620px; font-weight: 800; }
-    input { width: 100%; min-height: 44px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 0 12px; font: inherit; }
+    input, select { width: 100%; min-height: 44px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 0 12px; font: inherit; background:#fff; }
     .toolbar { display: flex; align-items: end; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+    .bulk-actions { display:flex; gap:8px; flex-wrap:wrap; margin-top:12px; padding:12px; background:#f8fafc; border-radius:10px; }
+    .check { width:18px; min-height:18px; }
     .status { margin-top: 16px; padding: 12px; border-radius: 10px; background: #eff6ff; border: 1px solid #bfdbfe; color: #1e3a8a; line-height: 1.6; white-space: pre-wrap; }
     .status.error { background: #fff1f2; border-color: #fda4af; color: #9f1239; }
     .count { color: #475569; font-weight: 800; }
@@ -414,7 +459,7 @@ function serveHCardLibraryAdmin(res) {
   <main>
     <section>
       <div class="topbar">
-        <div><h1>h 通道卡密库</h1><p class="hint">查看全部卡密状态。卡密只显示掩码，解锁后可绑定新账号。</p></div>
+        <div><h1>h 通道卡密库</h1><p class="hint">按来源、状态和生成日期筛选，支持批量管理。提交过资料的卡密只能归档，不能删除。</p></div>
         <div class="top-actions"><a class="back-link" href="/admin/cards">返回生成页</a><a class="back-link" href="/admin/hifupay/cards">嗨付卡池</a><a class="back-link" href="/admin/recoveries">充值记录</a><button class="secondary" id="refresh" type="button">刷新列表</button></div>
       </div>
       <label>
@@ -424,10 +469,11 @@ function serveHCardLibraryAdmin(res) {
       <div class="status" id="statusBox">输入管理密码后，可以查看和管理卡密。</div>
     </section>
     <section>
-      <div class="toolbar"><label>搜索账号或卡密<input id="cardSearch" type="search" placeholder="输入邮箱、账号ID、完整卡密或卡密片段"></label><label style="display:flex;grid-auto-flow:column;align-items:center;justify-content:start"><input id="showArchived" type="checkbox" style="width:20px;min-height:20px">显示归档</label><span class="count" id="libraryCount">-</span></div>
+      <div class="toolbar"><label>搜索<input id="cardSearch" type="search" placeholder="账号或卡密"></label><label>来源<select id="sourceFilter"><option value="">全部来源</option></select></label><label>状态<select id="cardStatusFilter"><option value="">全部状态</option><option value="unused">未使用</option><option value="locked">已锁定</option><option value="used">已使用</option><option value="disabled">已禁用</option><option value="archived">已归档</option></select></label><label>生成日期<input id="dateFilter" type="date"></label><label style="display:flex;grid-auto-flow:column;align-items:center;justify-content:start"><input id="showArchived" type="checkbox" class="check">显示归档</label><span class="count" id="libraryCount">-</span></div>
+      <div class="bulk-actions"><button class="secondary" id="selectAll">全选当前结果</button><button class="secondary" id="invertSelection">反选</button><button data-bulk-action="disable">批量禁用</button><button class="secondary" data-bulk-action="enable">批量启用</button><button class="secondary" data-bulk-action="archive">批量归档</button><button class="danger" data-bulk-action="delete">批量删除</button><strong id="selectedCount">已选 0 张</strong></div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>卡密</th><th>有效期</th><th>状态</th><th>绑定账号</th><th>创建时间</th><th>锁定时间</th><th>使用时间</th><th>操作</th></tr></thead>
+          <thead><tr><th><input id="selectPage" type="checkbox" class="check" title="全选当前结果"></th><th>序号</th><th>卡密</th><th>来源</th><th>状态</th><th>绑定账号</th><th>生成时间</th><th>操作</th></tr></thead>
           <tbody id="libraryCards"></tbody>
         </table>
       </div>
@@ -484,9 +530,11 @@ function serveHCardLibraryAdmin(res) {
 
     const statusLabels = { unused: "未使用", locked: "已锁定", reserved: "处理中", used: "已使用", disabled: "已禁用", expired: "已过期", archived: "已归档" };
     let allCards = [];
+    let filteredCards = [];
+    const selectedCards = new Set();
 
     function renderRows(cards) {
-      return cards.map(card => {
+      return cards.map((card, index) => {
         const effectiveStatus = card.archivedAt ? "archived" : card.status;
         const actionHtml = [
           card.archivedAt ? '<button type="button" data-card-action="restore" data-card-id="' + escapeHtml(card.id) + '">恢复</button>' : "",
@@ -501,15 +549,24 @@ function serveHCardLibraryAdmin(res) {
         ].filter(Boolean).join("");
         const account = [card.boundEmail, card.boundAccountId].filter(Boolean).join(" / ") || "-";
         const code = card.code || card.cardMask || "-";
-        return '<tr><td><span class="card-code">' + escapeHtml(code) + '</span>' + (card.code ? '<button class="secondary copy-card" type="button" data-card-code="' + escapeHtml(card.code) + '" onclick="copyCardCode(this)">复制</button>' : '') + '</td><td>' + escapeHtml(formatDate(card.expiresAt)) + '</td><td>' + escapeHtml(statusLabels[effectiveStatus] || effectiveStatus) + '</td><td>' + escapeHtml(account) + '</td><td>' + escapeHtml(formatDate(card.createdAt)) + '</td><td>' + escapeHtml(formatDate(card.boundAt)) + '</td><td>' + escapeHtml(formatDate(card.usedAt)) + '</td><td><div class="row-actions">' + actionHtml + '</div></td></tr>';
+        return '<tr><td><input class="check row-check" type="checkbox" data-card-id="' + escapeHtml(card.id) + '"' + (selectedCards.has(card.id) ? ' checked' : '') + '></td><td>' + (index + 1) + '</td><td><span class="card-code">' + escapeHtml(code) + '</span>' + (card.code ? '<button class="secondary copy-card" type="button" data-card-code="' + escapeHtml(card.code) + '" onclick="copyCardCode(this)">复制</button>' : '') + '</td><td>' + escapeHtml(card.source || "未分类") + '</td><td>' + escapeHtml(statusLabels[effectiveStatus] || effectiveStatus) + '</td><td>' + escapeHtml(account) + '</td><td>' + escapeHtml(formatDate(card.createdAt)) + '</td><td><div class="row-actions">' + actionHtml + '</div></td></tr>';
       }).join("") || '<tr><td colspan="8">暂无匹配卡密</td></tr>';
     }
 
     function applyFilter() {
       const keyword = document.getElementById("cardSearch").value.trim().toLowerCase();
-      const cards = allCards.filter(card => !keyword || [card.code, card.cardMask, card.boundEmail, card.boundAccountId, card.status].some(value => String(value || "").toLowerCase().includes(keyword)));
-      document.getElementById("libraryCards").innerHTML = renderRows(cards);
-      document.getElementById("libraryCount").textContent = cards.length + " / " + allCards.length + " 张";
+      const source = document.getElementById("sourceFilter").value;
+      const status = document.getElementById("cardStatusFilter").value;
+      const date = document.getElementById("dateFilter").value;
+      filteredCards = allCards.filter(card => {
+        const effectiveStatus = card.archivedAt ? "archived" : card.status;
+        const matchesKeyword = !keyword || [card.code, card.cardMask, card.boundEmail, card.boundAccountId].some(value => String(value || "").toLowerCase().includes(keyword));
+        return matchesKeyword && (!source || card.source === source) && (!status || effectiveStatus === status) && (!date || String(card.createdAt || "").slice(0, 10) === date);
+      });
+      document.getElementById("libraryCards").innerHTML = renderRows(filteredCards);
+      document.getElementById("libraryCount").textContent = filteredCards.length + " / " + allCards.length + " 张";
+      document.getElementById("selectedCount").textContent = "已选 " + selectedCards.size + " 张";
+      document.getElementById("selectPage").checked = filteredCards.length > 0 && filteredCards.every(card => selectedCards.has(card.id));
     }
 
     async function loadLibrary() {
@@ -517,6 +574,11 @@ function serveHCardLibraryAdmin(res) {
         const includeArchived = document.getElementById("showArchived").checked ? "&archived=1" : "";
         const data = await api("/api/admin/h-cards?all=1&reveal=1" + includeArchived);
         allCards = data.cards;
+        const sourceFilter = document.getElementById("sourceFilter");
+        const selectedSource = sourceFilter.value;
+        const sources = [...new Set(allCards.map(card => card.source || "未分类"))].sort();
+        sourceFilter.innerHTML = '<option value="">全部来源</option>' + sources.map(source => '<option value="' + escapeHtml(source) + '">' + escapeHtml(source) + '</option>').join("");
+        sourceFilter.value = selectedSource;
         applyFilter();
         setStatus("已加载全部卡密。");
       } catch (error) { setStatus(error.message, true); }
@@ -524,7 +586,38 @@ function serveHCardLibraryAdmin(res) {
 
     document.getElementById("refresh").addEventListener("click", loadLibrary);
     document.getElementById("cardSearch").addEventListener("input", applyFilter);
+    document.getElementById("sourceFilter").addEventListener("change", applyFilter);
+    document.getElementById("cardStatusFilter").addEventListener("change", applyFilter);
+    document.getElementById("dateFilter").addEventListener("change", applyFilter);
     document.getElementById("showArchived").addEventListener("change", loadLibrary);
+    document.getElementById("libraryCards").addEventListener("change", event => {
+      const checkbox = event.target.closest(".row-check");
+      if (!checkbox) return;
+      checkbox.checked ? selectedCards.add(checkbox.dataset.cardId) : selectedCards.delete(checkbox.dataset.cardId);
+      applyFilter();
+    });
+    function selectFiltered(mode) {
+      filteredCards.forEach(card => mode === "all" ? selectedCards.add(card.id) : selectedCards.has(card.id) ? selectedCards.delete(card.id) : selectedCards.add(card.id));
+      applyFilter();
+    }
+    document.getElementById("selectAll").onclick = () => selectFiltered("all");
+    document.getElementById("invertSelection").onclick = () => selectFiltered("invert");
+    document.getElementById("selectPage").onchange = event => {
+      filteredCards.forEach(card => event.target.checked ? selectedCards.add(card.id) : selectedCards.delete(card.id));
+      applyFilter();
+    };
+    document.querySelectorAll("[data-bulk-action]").forEach(button => button.onclick = async () => {
+      const action = button.dataset.bulkAction;
+      const ids = [...selectedCards];
+      if (!ids.length) return setStatus("请先勾选卡密。", true);
+      if (!confirm("确认对已选 " + ids.length + " 张卡密执行“" + button.textContent.trim() + "”？")) return;
+      try {
+        const data = await api("/api/admin/h-cards/bulk", { method:"POST", body:JSON.stringify({ cardIds:ids, action }) });
+        selectedCards.clear();
+        await loadLibrary();
+        setStatus("批量操作完成：成功 " + data.successCount + " 张，未处理 " + data.failedCount + " 张。");
+      } catch (error) { setStatus(error.message, true); }
+    });
     document.getElementById("libraryCards").addEventListener("click", async event => {
       const button = event.target.closest("[data-card-action]");
       if (!button) return;
@@ -561,14 +654,14 @@ function serveHifupayCardAdmin(res) {
 </style></head><body><main>
 <section><div class="top"><div><h1>嗨付卡池</h1><p>这里管理真正提交充值的嗨付卡片，不是用户拿到的激活卡密。系统只读取余额和状态，不会自动开卡、提余额或注销卡片。</p></div><div class="actions"><a href="/admin/cards">卡密生成</a><a href="/admin/cards/library">卡密库</a><a href="/admin/recoveries">充值记录</a></div></div>
 <label>管理密码<input id="token" type="password" autocomplete="current-password" placeholder="请输入 ADMIN_TOKEN"></label><div class="actions" style="margin-top:14px"><button id="refresh">刷新嗨付卡片</button><button class="secondary" id="local">查看本地记录</button></div><div class="status" id="status">输入管理密码后，可以读取嗨付卡池。</div></section>
-<section><div class="top"><h2>卡片状态</h2><strong id="count">0 张</strong></div><div class="table"><table><thead><tr><th>卡片</th><th>余额</th><th>Plus 名额</th><th>状态</th><th>保留截止</th><th>绑定账号</th><th>操作</th></tr></thead><tbody id="cards"><tr><td colspan="7">暂无记录</td></tr></tbody></table></div></section>
+<section><div class="top"><div><h2>卡片状态</h2><p class="hint">系统按顺序优先使用同一张卡；每次充值前读取嗨付实时余额，低于最近一次 Plus 实际扣款时自动切换。首次按 $16 预估，不设置安全余量。</p></div><strong id="count">0 张</strong></div><div class="table"><table><thead><tr><th>卡片</th><th>顺序</th><th>余额</th><th>本站成功记录</th><th>状态</th><th>保留截止</th><th>绑定账号</th><th>操作</th></tr></thead><tbody id="cards"><tr><td colspan="8">暂无记录</td></tr></tbody></table></div></section>
 </main><script>
 const token=document.getElementById("token"),statusBox=document.getElementById("status"),params=new URLSearchParams(location.search),hash=new URLSearchParams(location.hash.replace(/^#/,""));token.value=hash.get("token")||params.get("token")||localStorage.getItem("gptcProviderAdminToken")||"";if(token.value)localStorage.setItem("gptcProviderAdminToken",token.value);
 const esc=value=>String(value??"").replace(/[&<>\"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'\"':"&quot;","'":"&#39;"}[c]));const date=value=>{if(!value)return"-";const d=new Date(value);return Number.isNaN(d.getTime())?String(value):d.toLocaleString("zh-CN",{hour12:false})};const money=value=>value===null||value===undefined?"未知":"$"+Number(value).toFixed(2);const labels={ready:"可用",low_balance:"余额偏低",reserved:"处理中",full_hold:"已满·保留中",full_expired:"已满·待处理",disabled:"已禁用",upstream_unavailable:"上游不可用"};
 async function api(path,options={}){const current=token.value.trim();if(!current)throw Error("请先输入管理密码。");localStorage.setItem("gptcProviderAdminToken",current);const response=await fetch(path,{...options,headers:{"Content-Type":"application/json","X-Admin-Token":current,...(options.headers||{})}});const data=await response.json();if(!data.success)throw Error(data.message||"操作失败。");return data.data}
-function render(cards){return cards.map(card=>{const accounts=(card.plusUsers||[]).map(user=>esc((user.email||user.accountId||"未知账号")+(user.upgradeUntil?"（可升级至 "+date(user.upgradeUntil)+"）":""))).join("<br>")||"-";const pending=(card.inFlightOrders||[]).map(item=>'<br><small>待确认 '+esc(item.orderId)+' <button class="secondary" data-action="release" data-id="'+esc(card.id)+'" data-order-id="'+esc(item.orderId)+'">释放</button></small>').join("");const cls=["disabled"].includes(card.poolStatus)?"bad":["low_balance","reserved","full_hold","full_expired","upstream_unavailable"].includes(card.poolStatus)?"warn":"";const action=card.enabled?'<button class="danger" data-action="disable" data-id="'+esc(card.id)+'">禁用</button>':'<button class="secondary" data-action="enable" data-id="'+esc(card.id)+'">启用</button>';return '<tr><td>ID '+esc(card.id)+'<br>****'+esc(card.lastFour||"----")+'</td><td>'+esc(money(card.balance))+'<br><small>可用 '+esc(money(card.availableBalance))+'</small></td><td>'+esc(card.plusUsed+" / "+card.maxPlusUsers)+'<br><small>剩余 '+esc(card.plusRemaining)+'</small></td><td><span class="badge '+cls+'">'+esc(labels[card.poolStatus]||card.poolStatus||"未知")+'</span></td><td>'+esc(date(card.holdUntil))+'</td><td class="accounts">'+accounts+pending+'</td><td>'+action+'</td></tr>'}).join("")||'<tr><td colspan="7">暂无记录</td></tr>'}
+function render(cards){return cards.map(card=>{const accounts=(card.plusUsers||[]).map(user=>esc((user.email||user.accountId||"未知账号")+(user.upgradeUntil?"（可升级至 "+date(user.upgradeUntil)+"）":""))).join("<br>")||"-";const pending=(card.inFlightOrders||[]).map(item=>'<br><small>待确认 '+esc(item.orderId)+' <button class="secondary" data-action="release" data-id="'+esc(card.id)+'" data-order-id="'+esc(item.orderId)+'">释放</button></small>').join("");const cls=["disabled"].includes(card.poolStatus)?"bad":["low_balance","reserved","upstream_unavailable"].includes(card.poolStatus)?"warn":"";const action=card.enabled?'<button class="danger" data-action="disable" data-id="'+esc(card.id)+'">禁用</button>':'<button class="secondary" data-action="enable" data-id="'+esc(card.id)+'">启用</button>';return '<tr><td>ID '+esc(card.id)+'<br>****'+esc(card.lastFour||"----")+'</td><td><input style="width:72px" type="number" min="0" data-setting="priority" data-id="'+esc(card.id)+'" value="'+esc(card.priority)+'"></td><td>'+esc(money(card.balance))+'<br><small>可用 '+esc(money(card.availableBalance))+'</small></td><td>'+esc(card.automaticPlusUsed)+' 人</td><td><span class="badge '+cls+'">'+esc(labels[card.poolStatus]||card.poolStatus||"未知")+'</span></td><td>'+esc(date(card.holdUntil))+'</td><td class="accounts">'+accounts+pending+'</td><td>'+action+'</td></tr>'}).join("")||'<tr><td colspan="8">暂无记录</td></tr>'}
 async function load(refresh=false){try{const data=await api("/api/admin/hifupay/cards"+(refresh?"?refresh=1":""));document.getElementById("cards").innerHTML=render(data.cards||[]);document.getElementById("count").textContent=(data.cards||[]).length+" 张";statusBox.textContent=refresh?"已刷新嗨付卡片余额和状态。":(data.updatedAt?"已加载本地卡池记录，最后同步："+date(data.updatedAt):"暂无本地卡池记录，请先刷新。");statusBox.classList.remove("error")}catch(error){statusBox.textContent=error.message;statusBox.classList.add("error")}}
-document.getElementById("refresh").onclick=()=>load(true);document.getElementById("local").onclick=()=>load(false);document.getElementById("cards").onclick=async event=>{const button=event.target.closest("[data-action]");if(!button)return;if(button.dataset.action==="release"&&!confirm("确认释放这笔待确认占用？请先确认嗨付没有扣款。"))return;button.disabled=true;try{await api("/api/admin/hifupay/cards/"+encodeURIComponent(button.dataset.id)+"/"+button.dataset.action,{method:"POST",body:button.dataset.action==="release"?JSON.stringify({orderId:button.dataset.orderId}):"{}"});await load(false)}catch(error){statusBox.textContent=error.message;statusBox.classList.add("error");button.disabled=false}};if(token.value)load(false);
+document.getElementById("refresh").onclick=()=>load(true);document.getElementById("local").onclick=()=>load(false);document.getElementById("cards").onchange=async event=>{const input=event.target.closest("[data-setting]");if(!input)return;input.disabled=true;try{await api("/api/admin/hifupay/cards/"+encodeURIComponent(input.dataset.id)+"/settings",{method:"POST",body:JSON.stringify({field:input.dataset.setting,value:Number(input.value)})});statusBox.textContent="卡片顺序已保存。";statusBox.classList.remove("error");await load(false)}catch(error){statusBox.textContent=error.message;statusBox.classList.add("error");input.disabled=false}};document.getElementById("cards").onclick=async event=>{const button=event.target.closest("[data-action]");if(!button)return;if(button.dataset.action==="release"&&!confirm("确认释放这笔待确认占用？请先确认嗨付没有扣款。"))return;button.disabled=true;try{await api("/api/admin/hifupay/cards/"+encodeURIComponent(button.dataset.id)+"/"+button.dataset.action,{method:"POST",body:button.dataset.action==="release"?JSON.stringify({orderId:button.dataset.orderId}):"{}"});await load(false)}catch(error){statusBox.textContent=error.message;statusBox.classList.add("error");button.disabled=false}};if(token.value)load(false);
 </script></body></html>`;
   res.writeHead(200, { "Content-Type": "text/html; charset=utf-8", "Cache-Control": "no-store", "Referrer-Policy": "no-referrer" });
   res.end(html);
@@ -627,12 +720,12 @@ function serveRecoveryAdmin(res) {
       <div class="status" id="statusBox">输入管理密码后，可以查看全部充值记录。</div>
     </section>
     <section>
-      <div class="toolbar"><label>搜索记录<input id="recordSearch" type="search" placeholder="输入账号、卡密、订单号"></label><label>状态<select id="statusFilter"><option value="">全部状态</option><option value="processing">处理中</option><option value="success">成功</option><option value="failed">失败</option><option value="needs_review">待确认</option></select></label><label>通道<select id="providerFilter"><option value="">全部通道</option></select></label><span class="count" id="recoveryCount">0 条</span></div>
+      <div class="toolbar"><label>搜索记录<input id="recordSearch" type="search" placeholder="输入账号或卡密"></label><label>状态<select id="statusFilter"><option value="">全部状态</option><option value="processing">处理中</option><option value="success">成功</option><option value="failed">失败</option><option value="needs_review">待确认</option></select></label><label>通道<select id="providerFilter"><option value="">全部通道</option></select></label><span class="count" id="recoveryCount">0 条</span></div>
       <p class="hint">“重新提交”会再次调用充值通道，只有确认上一次没有成功扣费时再使用；“标记成功”只修改本站显示状态，不会调用充值通道。</p>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>订单</th><th>账号</th><th>卡密</th><th>状态</th><th>失败原因</th><th>更新时间</th><th>操作</th></tr></thead>
-          <tbody id="recoveries"><tr><td class="empty" colspan="7">暂无充值记录</td></tr></tbody>
+          <thead><tr><th>账号</th><th>卡密/通道</th><th>状态</th><th>结果说明</th><th>提交时间</th><th>操作</th></tr></thead>
+          <tbody id="recoveries"><tr><td class="empty" colspan="6">暂无充值记录</td></tr></tbody>
         </table>
       </div>
     </section>
@@ -675,14 +768,13 @@ function serveRecoveryAdmin(res) {
       return ({ needs_review: "待确认", failed: "失败", success: "成功", processing: "处理中", syncing: "同步中", created: "已创建" })[status] || status;
     }
     function renderRows(items) {
-      if (!items.length) return '<tr><td class="empty" colspan="7">暂无匹配记录</td></tr>';
+      if (!items.length) return '<tr><td class="empty" colspan="6">暂无匹配记录</td></tr>';
       return items.map(item => '<tr>'
-        + '<td>' + escapeHtml(item.id) + '<br><small>' + escapeHtml(item.provider) + '</small></td>'
         + '<td>' + escapeHtml(item.userEmail || "-") + '</td>'
-        + '<td>' + escapeHtml(item.cardMask || "-") + '</td>'
+        + '<td>' + escapeHtml(item.cardMask || "-") + '<br><small>通道 ' + escapeHtml(item.provider) + '</small></td>'
         + '<td>' + escapeHtml(statusLabel(item.status)) + '</td>'
         + '<td class="message">' + escapeHtml(item.message || "-") + '</td>'
-        + '<td>' + escapeHtml(formatDate(item.updatedAt || item.createdAt)) + '</td>'
+        + '<td>' + escapeHtml(formatDate(item.createdAt)) + '</td>'
         + '<td><div class="row-actions">'
         + (item.hasOriginalJson ? '<button class="secondary" type="button" data-action="copy-json" data-order-id="' + escapeHtml(item.id) + '">复制JSON</button>' : '')
         + (["failed", "needs_review"].includes(item.status) ? '<button class="secondary" type="button" data-action="retry" data-order-id="' + escapeHtml(item.id) + '">重新提交</button><button type="button" data-action="mark-success" data-order-id="' + escapeHtml(item.id) + '">标记成功</button>' : '')
@@ -692,7 +784,7 @@ function serveRecoveryAdmin(res) {
       const keyword = document.getElementById("recordSearch").value.trim().toLowerCase();
       const status = document.getElementById("statusFilter").value;
       const provider = document.getElementById("providerFilter").value;
-      const records = allRecords.filter(item => (!keyword || [item.id, item.userEmail, item.cardMask].some(value => String(value || "").toLowerCase().includes(keyword))) && (!status || item.status === status) && (!provider || item.provider === provider));
+      const records = allRecords.filter(item => (!keyword || [item.userEmail, item.cardMask].some(value => String(value || "").toLowerCase().includes(keyword))) && (!status || item.status === status) && (!provider || item.provider === provider));
       document.getElementById("recoveries").innerHTML = renderRows(records);
       document.getElementById("recoveryCount").textContent = records.length + " / " + allRecords.length + " 条";
     }
@@ -984,7 +1076,7 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const hifupayCardAction = url.pathname.match(/^\/api\/admin\/hifupay\/cards\/([^/]+)\/(disable|enable|release)$/);
+    const hifupayCardAction = url.pathname.match(/^\/api\/admin\/hifupay\/cards\/([^/]+)\/(disable|enable|release|settings)$/);
     if (req.method === "POST" && hifupayCardAction) {
       const body = await readJsonBody(req);
       const auth = assertAdmin(req, url, body);
@@ -996,6 +1088,10 @@ const server = http.createServer(async (req, res) => {
       const action = hifupayCardAction[2];
       const result = action === "release"
         ? rechargeService.clearHifupayReservation(cardId, body.orderId)
+        : action === "settings"
+          ? (body.field === "priority"
+            ? rechargeService.setHifupayCardPriority(cardId, body.value)
+            : { ok: false, status: 400, message: "不支持的卡片设置。" })
         : rechargeService.setHifupayCardEnabled(cardId, action === "enable");
       sendJson(res, result.status, result.ok ? { success: true, data: result.data } : { success: false, message: result.message });
       return;
@@ -1064,6 +1160,18 @@ const server = http.createServer(async (req, res) => {
       }
       const result = rechargeService.createHCards(body);
       sendJson(res, result.status, result.ok ? { success: true, data: result.data } : { success: false, message: result.message });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/admin/h-cards/bulk") {
+      const body = await readJsonBody(req);
+      const auth = assertAdmin(req, url, body);
+      if (!auth.ok) {
+        sendJson(res, auth.status, { success: false, message: auth.message });
+        return;
+      }
+      const result = rechargeService.bulkHCardAction(body.cardIds, body.action);
+      sendJson(res, result.status, { success: true, data: result.data });
       return;
     }
 

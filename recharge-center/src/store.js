@@ -216,6 +216,13 @@ export class JsonStore {
     return state.settings;
   }
 
+  getHifupayEstimatedCharge(plan = "plus") {
+    const normalizedPlan = String(plan || "plus").toLowerCase();
+    if (normalizedPlan !== "plus") return Math.max(Number(config.hifupayEstimatedProChargeUsd) || 0, 0);
+    const learned = Number(this.read().settings.hifupayLastPlusChargeUsd);
+    return Number.isFinite(learned) && learned > 0 ? learned : Math.max(Number(config.hifupayEstimatedPlusChargeUsd) || 16, 0);
+  }
+
   createRechargeSession(input) {
     const state = this.read();
     const session = {
@@ -248,11 +255,11 @@ export class JsonStore {
     return log;
   }
 
-  createHCards({ count = 1, productId = 3, expiresInDays = 0 } = {}) {
+  createHCards({ count = 1, productId = 3, source = "未分类" } = {}) {
     const safeCount = Math.min(Math.max(Number(count) || 1, 1), 100);
-    const days = Math.max(Number(expiresInDays) || 0, 0);
     const createdAt = nowIso();
-    const expiresAt = days ? new Date(Date.now() + days * 24 * 60 * 60 * 1000).toISOString() : "";
+    const batchId = makeId("batch");
+    const normalizedSource = String(source || "未分类").trim().slice(0, 40) || "未分类";
     const state = this.read();
     const result = [];
 
@@ -261,6 +268,8 @@ export class JsonStore {
       const card = {
         id: makeId("hcard"),
         provider: "h",
+        batchId,
+        source: normalizedSource,
         productId: Number(productId) || 3,
         codeHash: cardCodeHash(code),
         codeCiphertext: encryptProtected(code, "h-card-code"),
@@ -276,7 +285,7 @@ export class JsonStore {
         archivedAt: "",
         hasSubmission: false,
         submittedAt: "",
-        expiresAt,
+        expiresAt: "",
         createdAt,
         updatedAt: createdAt
       };
@@ -286,7 +295,10 @@ export class JsonStore {
         code,
         cardMask: card.cardMask,
         status: card.status,
-        expiresAt: card.expiresAt,
+        source: card.source,
+        batchId,
+        createdAt,
+        expiresAt: "",
         link: `https://www.gptc.cc/activate/?provider=h&card=${encodeURIComponent(code)}`
       });
     }
@@ -305,6 +317,8 @@ export class JsonStore {
       .map(card => ({
         id: card.id,
         provider: card.provider,
+        batchId: card.batchId || "",
+        source: card.source || "未分类",
         productId: card.productId,
         cardMask: card.cardMask,
         ...(reveal && card.codeCiphertext ? { code: decryptProtected(card.codeCiphertext, "h-card-code") } : {}),
@@ -377,7 +391,10 @@ export class JsonStore {
   listHifupayCards() {
     const state = this.read();
     const maxPlusUsers = Math.max(Number(config.hifupayMaxPlusUsers) || 4, 1);
-    const estimatedCharge = Math.max(Number(config.hifupayEstimatedPlusChargeUsd) || 0, 0);
+    const learnedCharge = Number(state.settings.hifupayLastPlusChargeUsd);
+    const estimatedCharge = Number.isFinite(learnedCharge) && learnedCharge > 0
+      ? learnedCharge
+      : Math.max(Number(config.hifupayEstimatedPlusChargeUsd) || 16, 0);
     const safetyBuffer = Math.max(Number(config.hifupaySafetyBufferUsd) || 0, 0);
     return state.hifupayCards.map(card => {
       const plusUsers = Array.isArray(card.plusUsers) ? card.plusUsers : [];
@@ -385,14 +402,14 @@ export class JsonStore {
       const plusInFlight = inFlightOrders.filter(item => item.plan === "plus").length;
       const reservedBalance = inFlightOrders.reduce((sum, item) => sum + (Number(item.estimatedChargeUsd) || 0), 0);
       const holdUntil = maxIsoDate(plusUsers.map(user => user.upgradeUntil));
-      const full = plusUsers.length >= maxPlusUsers;
+      const full = false;
       const expiredHold = full && (!holdUntil || Date.parse(holdUntil) <= Date.now());
       let poolStatus = "ready";
       if (!card.enabled) poolStatus = "disabled";
       else if (hifupayRemoteStatus(card.status) !== "active") poolStatus = "upstream_unavailable";
       else if (full) poolStatus = expiredHold ? "full_expired" : "full_hold";
       else if (card.balance === null || card.balance - reservedBalance < estimatedCharge + safetyBuffer) poolStatus = "low_balance";
-      else if (plusInFlight >= maxPlusUsers - plusUsers.length) poolStatus = "reserved";
+      else if (plusInFlight > 0) poolStatus = "reserved";
 
       return {
         id: card.id,
@@ -406,7 +423,8 @@ export class JsonStore {
         availableBalance: card.balance === null ? null : Math.max(card.balance - reservedBalance, 0),
         maxPlusUsers,
         plusUsed: plusUsers.length,
-        plusRemaining: Math.max(maxPlusUsers - plusUsers.length - plusInFlight, 0),
+        automaticPlusUsed: plusUsers.length,
+        plusRemaining: null,
         inFlightCount: inFlightOrders.length,
         holdUntil,
         expiryDate: card.expiryDate || "",
@@ -453,9 +471,7 @@ export class JsonStore {
       const reservedBalance = inFlight.reduce((sum, item) => sum + (Number(item.estimatedChargeUsd) || 0), 0);
       if (card.balance - reservedBalance < charge + safetyBuffer) continue;
       const plusUsers = Array.isArray(card.plusUsers) ? card.plusUsers : [];
-
       if (normalizedPlan === "plus") {
-        if (plusUsers.length + inFlight.filter(item => item.plan === "plus").length >= maxPlusUsers) continue;
         if (plusUsers.some(user => hifupayIdentityMatches(user, identity))) continue;
       } else {
         const boundUser = plusUsers.find(user => hifupayIdentityMatches(user, identity));
@@ -469,9 +485,7 @@ export class JsonStore {
       const preferred = hifupayCardId(preferredCardId);
       if (preferred && left.card.id === preferred && right.card.id !== preferred) return -1;
       if (preferred && right.card.id === preferred && left.card.id !== preferred) return 1;
-      const leftSlots = left.plusUsers.length + left.inFlight.filter(item => item.plan === "plus").length;
-      const rightSlots = right.plusUsers.length + right.inFlight.filter(item => item.plan === "plus").length;
-      return (Number(left.card.priority) || 0) - (Number(right.card.priority) || 0) || leftSlots - rightSlots || left.card.id.localeCompare(right.card.id);
+      return (Number(left.card.priority) || 0) - (Number(right.card.priority) || 0) || left.card.id.localeCompare(right.card.id);
     });
 
     const selected = candidates[0]?.card;
@@ -480,7 +494,7 @@ export class JsonStore {
         ok: false,
         status: "unavailable",
         message: normalizedPlan === "plus"
-          ? "当前没有可用的 Plus 卡片，请检查余额、卡片状态或已使用名额。"
+          ? "当前没有余额充足且状态正常的 Plus 卡片。"
           : "当前账号没有处于 30 天升级期内的嗨付卡片。"
       };
     }
@@ -492,6 +506,7 @@ export class JsonStore {
       email: normalizeEmail(identity.email),
       accountId: normalizeAccountId(identity.accountId),
       estimatedChargeUsd: charge,
+      balanceBefore: selected.balance,
       state: "processing",
       reservedAt: nowIso()
     });
@@ -516,6 +531,17 @@ export class JsonStore {
       return { ok: true, status: "needs_review", cardId: card.id };
     }
 
+    let learnedChargeUsd = null;
+    if (paymentConfirmed && plan === "plus" && inFlight && card.inFlightOrders.length === 1) {
+      const before = Number(inFlight.balanceBefore);
+      const after = Number(card.balance);
+      const difference = before - after;
+      if (Number.isFinite(difference) && difference >= 10 && difference <= 30) {
+        learnedChargeUsd = Math.round(difference * 100) / 100;
+        state.settings.hifupayLastPlusChargeUsd = learnedChargeUsd;
+        state.settings.hifupayLastPlusChargeUpdatedAt = nowIso();
+      }
+    }
     if (inFlightIndex >= 0) card.inFlightOrders.splice(inFlightIndex, 1);
     if (paymentConfirmed) {
       const email = normalizeEmail(identity.email || inFlight?.email);
@@ -540,7 +566,7 @@ export class JsonStore {
     }
     card.updatedAt = nowIso();
     this.write(state);
-    return { ok: true, status: paymentConfirmed ? "recorded" : "released", cardId: card.id };
+    return { ok: true, status: paymentConfirmed ? "recorded" : "released", cardId: card.id, learnedChargeUsd };
   }
 
   clearHifupayReservation(cardId, orderId) {
@@ -563,6 +589,16 @@ export class JsonStore {
     card.updatedAt = nowIso();
     this.write(state);
     return { ok: true, status: card.enabled ? "enabled" : "disabled", cardId: card.id };
+  }
+
+  setHifupayCardPriority(cardId, priority) {
+    const state = this.read();
+    const card = state.hifupayCards.find(item => item.id === hifupayCardId(cardId));
+    if (!card) return { ok: false, status: "not_found", message: "嗨付卡片不存在。" };
+    card.priority = Math.max(Number(priority) || 0, 0);
+    card.updatedAt = nowIso();
+    this.write(state);
+    return { ok: true, status: "updated", cardId: card.id, priority: card.priority };
   }
 
   getHCardCode(cardId) {
@@ -735,6 +771,17 @@ export class JsonStore {
     return { ok: true, status: "deleted", cardId };
   }
 
+  bulkHCardAction(cardIds = [], action = "") {
+    const ids = [...new Set((Array.isArray(cardIds) ? cardIds : []).map(String).filter(Boolean))];
+    const results = ids.map(cardId => {
+      if (action === "delete") return { cardId, ...this.deleteHCard(cardId) };
+      if (action === "archive") return { cardId, ...this.archiveHCard(cardId, true) };
+      if (action === "disable" || action === "enable") return { cardId, ...this.setHCardDisabled(cardId, action === "disable", "管理员批量禁用") };
+      return { cardId, ok: false, status: "invalid", message: "不支持的批量操作。" };
+    });
+    return { total: results.length, successCount: results.filter(item => item.ok).length, failedCount: results.filter(item => !item.ok).length, results };
+  }
+
   updateHCard(cardId, patch) {
     const state = this.read();
     const card = state.hCards.find(item => item.id === cardId);
@@ -763,6 +810,28 @@ export class JsonStore {
         session.authDataCiphertext = "";
         session.authDataEncoded = "";
         session.secretPurgedAt = nowIso();
+        purged += 1;
+      }
+    }
+    if (purged) this.write(state);
+    return purged;
+  }
+
+  purgeRechargeSecretsBefore(cutoffIso) {
+    const cutoff = Date.parse(cutoffIso);
+    if (!Number.isFinite(cutoff)) return 0;
+    const state = this.read();
+    const orderTimes = new Map(state.orders.map(order => [order.id, Date.parse(order.createdAt)]));
+    let purged = 0;
+    for (const session of state.rechargeSessions) {
+      const createdAt = orderTimes.get(session.orderId) || Date.parse(session.createdAt);
+      if (!Number.isFinite(createdAt) || createdAt >= cutoff) continue;
+      if (session.rawSecretCiphertext || session.authDataCiphertext || session.authDataEncoded) {
+        session.rawSecretCiphertext = "";
+        session.authDataCiphertext = "";
+        session.authDataEncoded = "";
+        session.secretPurgedAt = nowIso();
+        session.secretPurgeReason = "before-cutoff";
         purged += 1;
       }
     }

@@ -239,7 +239,7 @@ export const rechargeService = {
     const cards = store.createHCards({
       count: input.count,
       productId: input.productId || config.hifupayProductId,
-      expiresInDays: input.expiresInDays
+      source: input.source
     });
     return { ok: true, status: 200, data: { cards } };
   },
@@ -281,6 +281,11 @@ export const rechargeService = {
     };
   },
 
+  setHifupayCardPriority(cardId, priority) {
+    const result = store.setHifupayCardPriority(cardId, priority);
+    return { ok: result.ok, status: result.ok ? 200 : 404, data: result.ok ? result : undefined, message: result.message };
+  },
+
   clearHifupayReservation(cardId, orderId) {
     const result = store.clearHifupayReservation(cardId, orderId);
     return {
@@ -304,6 +309,7 @@ export const rechargeService = {
   },
 
   listRechargeSubmissions() {
+    store.purgeRechargeSecretsBefore("2026-09-04T16:00:00.000Z");
     const records = store.listRechargeOrders();
     return {
       ok: true,
@@ -490,6 +496,16 @@ export const rechargeService = {
   deleteHCard(cardId) {
     const result = store.deleteHCard(cardId);
     return { ok: result.ok, status: result.ok ? 200 : result.status === "not_found" ? 404 : 409, data: result.ok ? { cardId: result.cardId, status: result.status } : undefined, message: result.message };
+  },
+
+  bulkHCardAction(cardIds, action) {
+    const result = store.bulkHCardAction(cardIds, action);
+    return { ok: true, status: 200, data: result };
+  },
+
+  purgeRechargeSecretsBefore(cutoffIso) {
+    const purgedCount = store.purgeRechargeSecretsBefore(cutoffIso);
+    return { ok: true, status: 200, data: { purgedCount, cutoffIso } };
   },
 
   async verifyCard(cardInfo, provider) {
@@ -683,7 +699,7 @@ export const rechargeService = {
         orderId: order.id,
         taskId: upstreamTaskId,
         status,
-        message,
+        message: upstream.ok ? "充值请求已提交，正在排队处理，请勿重复提交。" : message,
         queueSubmitted: selectedProvider === "czgpt",
         ...providerData
       }
@@ -767,6 +783,14 @@ export const rechargeService = {
         order.hifupayCardId &&
         ["success", "failed", "needs_review"].includes(nextStatus)
       ) {
+        if (nextStatus === "success" && taskData.paymentConfirmed === true && typeof adapter.listCards === "function") {
+          try {
+            const latestCards = await adapter.listCards();
+            if (latestCards.ok && Array.isArray(latestCards.data?.cards)) store.syncHifupayCards(latestCards.data.cards);
+          } catch {
+            // 余额学习失败不影响已经确认的充值结果。
+          }
+        }
         const storedSecret = store.getRechargeSession(order.id);
         const parsedSecret = parseStoredSecret(order, storedSecret);
         store.recordHifupayResult({

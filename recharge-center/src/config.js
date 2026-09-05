@@ -32,7 +32,7 @@ export const config = {
   hifupayUpgradeWindowDays: Number(process.env.HIFUPAY_UPGRADE_WINDOW_DAYS || 30),
   hifupayEstimatedPlusChargeUsd: Number(process.env.HIFUPAY_ESTIMATED_PLUS_CHARGE_USD || 16),
   hifupayEstimatedProChargeUsd: Number(process.env.HIFUPAY_ESTIMATED_PRO_CHARGE_USD || 0),
-  hifupaySafetyBufferUsd: Number(process.env.HIFUPAY_SAFETY_BUFFER_USD || 2),
+  hifupaySafetyBufferUsd: Number(process.env.HIFUPAY_SAFETY_BUFFER_USD || 0),
   hifupayProductId: Number(process.env.HIFUPAY_PRODUCT_ID || 3),
   adminToken: process.env.ADMIN_TOKEN || "",
   recoveryEncryptionKey: process.env.RECOVERY_ENCRYPTION_KEY || "",

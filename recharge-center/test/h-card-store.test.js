@@ -10,10 +10,12 @@ test("h cards bind once, stay locked on failure, and support admin unlock/disabl
 
   const { JsonStore } = await import("../src/store.js");
   const store = new JsonStore(path.join(tempDir, "orders.json"));
-  const cards = store.createHCards({ count: 3, productId: 3 });
+  const cards = store.createHCards({ count: 3, productId: 3, source: "微信" });
 
   assert.equal(cards.length, 3);
   assert.notEqual(cards[0].code, cards[1].code);
+  assert.equal(cards.every(card => card.source === "微信" && card.expiresAt === ""), true);
+  assert.equal(store.listHCards().every(card => card.source === "微信"), true);
   assert.equal(store.listHCards().every(card => !("code" in card) && !("codeHash" in card)), true);
   assert.equal(store.listHCards(1).length, 1);
   assert.equal(store.listHCards(1, true).length, 3);
@@ -106,4 +108,26 @@ test("all recharge records are listed and successful secrets expire after 45 day
   assert.equal(records.length, 2);
   assert.equal(records.find(item => item.id === success.id).hasOriginalJson, false);
   assert.equal(records.find(item => item.id === failed.id).hasOriginalJson, true);
+});
+
+test("historical recharge JSON can be purged without deleting recharge records", async t => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "gptc-recharge-purge-test-"));
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }));
+  const dataFile = path.join(tempDir, "orders.json");
+  const { JsonStore } = await import("../src/store.js");
+  const store = new JsonStore(dataFile);
+  const oldOrder = store.createOrder({ provider: "h", status: "failed" });
+  const newOrder = store.createOrder({ provider: "h", status: "failed" });
+  store.createRechargeSession({ orderId: oldOrder.id, userEmail: "old@example.com", rawSecretCiphertext: "old-json", authDataCiphertext: "old-auth" });
+  store.createRechargeSession({ orderId: newOrder.id, userEmail: "new@example.com", rawSecretCiphertext: "new-json", authDataCiphertext: "new-auth" });
+  const state = JSON.parse(fs.readFileSync(dataFile, "utf8"));
+  state.orders.find(item => item.id === oldOrder.id).createdAt = "2026-09-04T15:59:59.000Z";
+  state.orders.find(item => item.id === newOrder.id).createdAt = "2026-09-04T16:00:00.000Z";
+  fs.writeFileSync(dataFile, JSON.stringify(state, null, 2));
+
+  assert.equal(store.purgeRechargeSecretsBefore("2026-09-04T16:00:00.000Z"), 1);
+  const records = store.listRechargeOrders();
+  assert.equal(records.length, 2);
+  assert.equal(records.find(item => item.id === oldOrder.id).hasOriginalJson, false);
+  assert.equal(records.find(item => item.id === newOrder.id).hasOriginalJson, true);
 });

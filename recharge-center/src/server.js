@@ -313,7 +313,7 @@ function serveHCardAdmin(res) {
       <div class="page-actions"><a class="action-link" href="/admin/cards/library">卡密库</a><a class="action-link" href="/admin/hifupay/cards">嗨付卡池</a><a class="action-link" href="/admin/recoveries">充值记录</a></div>
       <div class="summary" id="batchSummary"></div>
       <div class="batch-meta" id="batchMeta" hidden></div>
-      <div class="output-actions" id="outputActions"><button class="secondary" id="copyCodes">复制全部卡密</button><button class="secondary" id="copyLinks">复制全部链接</button><button class="secondary" id="downloadCodes">下载卡密 TXT</button><button class="secondary" id="downloadLinks">下载链接 TXT</button><button class="secondary" id="downloadCodeZip">下载卡密 ZIP</button><button class="secondary" id="downloadLinkZip">下载链接 ZIP</button></div>
+      <div class="output-actions" id="outputActions"><button class="secondary" id="copyCodes">复制全部卡密</button><button class="secondary" id="copyLinks">复制全部链接</button></div>
       <div class="generated" id="generated"></div>
     </section>
   </main>
@@ -375,71 +375,10 @@ function serveHCardAdmin(res) {
     function outputText(type) {
       return generatedCards.map(card => type === "links" ? card.link : card.code).join("\\n");
     }
-    function downloadBlob(blob, name) {
-      const link = document.createElement("a");
-      link.href = URL.createObjectURL(blob);
-      link.download = name;
-      link.click();
-      window.setTimeout(() => URL.revokeObjectURL(link.href), 1000);
-    }
-    function concatBytes(parts) {
-      const total = parts.reduce((sum, part) => sum + part.length, 0);
-      const output = new Uint8Array(total);
-      let offset = 0;
-      parts.forEach(part => { output.set(part, offset); offset += part.length; });
-      return output;
-    }
-    function crc32(bytes) {
-      let crc = 0xffffffff;
-      for (const byte of bytes) {
-        crc ^= byte;
-        for (let bit = 0; bit < 8; bit += 1) crc = (crc >>> 1) ^ (crc & 1 ? 0xedb88320 : 0);
-      }
-      return (crc ^ 0xffffffff) >>> 0;
-    }
-    function zipFiles(files) {
-      const encoder = new TextEncoder();
-      const localParts = [];
-      const centralParts = [];
-      let offset = 0;
-      const u16 = value => new Uint8Array([value & 255, (value >>> 8) & 255]);
-      const u32 = value => new Uint8Array([value & 255, (value >>> 8) & 255, (value >>> 16) & 255, (value >>> 24) & 255]);
-      files.forEach(file => {
-        const name = encoder.encode(file.name);
-        const data = encoder.encode(file.text);
-        const checksum = crc32(data);
-        const local = concatBytes([new Uint8Array([80, 75, 3, 4, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0]), u32(checksum), u32(data.length), u32(data.length), u16(name.length), u16(0), name, data]);
-        const central = concatBytes([new Uint8Array([80, 75, 1, 2, 20, 0, 20, 0, 0, 0, 0, 0, 0, 0, 0, 0]), u32(checksum), u32(data.length), u32(data.length), u16(name.length), u16(0), u16(0), u16(0), u16(0), u32(0), u32(offset), name]);
-        localParts.push(local);
-        centralParts.push(central);
-        offset += local.length;
-      });
-      const central = concatBytes(centralParts);
-      const end = concatBytes([new Uint8Array([80, 75, 5, 6, 0, 0, 0, 0]), u16(files.length), u16(files.length), u32(central.length), u32(offset), u16(0)]);
-      return new Blob([concatBytes([...localParts, central, end])], { type: "application/zip" });
-    }
-    function downloadZip(type) {
-      if (!generatedCards.length) return;
-      const stamp = new Date().toLocaleDateString("sv-SE").replaceAll("-", "");
-      const source = (currentSource() || "未分类").replace(/[\\/:*?"<>|]/g, "-");
-      const files = generatedCards.map((card, index) => {
-        const number = String(card.sequence || index + 1).padStart(3, "0");
-        const tail = String(card.code || "").slice(-4) || "----";
-        return { name: stamp + "-" + source + "-" + number + "-" + tail + ".txt", text: (type === "links" ? card.link : card.code) + "\\n" };
-      });
-      downloadBlob(zipFiles(files), stamp + "-" + source + "-" + (type === "links" ? "链接" : "卡密") + ".zip");
-    }
     async function copyOutput(type) {
       if (!generatedCards.length) return;
       await navigator.clipboard.writeText(outputText(type));
       setStatus(type === "links" ? "全部充值链接已复制。" : "全部卡密已复制，可直接粘贴到 Excel。");
-    }
-    function downloadOutput(type) {
-      if (!generatedCards.length) return;
-      const source = currentSource() || "未分类";
-      const date = new Date().toLocaleDateString("sv-SE");
-      const name = date + "-" + source.replace(/[\\/:*?\"<>|]/g, "-") + "-" + generatedCards.length + "张-" + (type === "links" ? "充值链接" : "卡密") + ".txt";
-      downloadBlob(new Blob([outputText(type)], { type: "text/plain;charset=utf-8" }), name);
     }
     function syncCustomSource() {
       const source = document.getElementById("source");
@@ -462,10 +401,6 @@ function serveHCardAdmin(res) {
     });
     document.getElementById("copyCodes").onclick = () => copyOutput("codes");
     document.getElementById("copyLinks").onclick = () => copyOutput("links");
-    document.getElementById("downloadCodes").onclick = () => downloadOutput("codes");
-    document.getElementById("downloadLinks").onclick = () => downloadOutput("links");
-    document.getElementById("downloadCodeZip").onclick = () => downloadZip("codes");
-    document.getElementById("downloadLinkZip").onclick = () => downloadZip("links");
 
     document.getElementById("generate").addEventListener("click", async () => {
       try {
@@ -652,7 +587,8 @@ function serveHCardLibraryAdmin(res) {
       });
       document.getElementById("libraryCards").innerHTML = renderRows(filteredCards);
       document.getElementById("libraryCount").textContent = filteredCards.length + " / " + allCards.length + " 张";
-      document.getElementById("selectedCount").textContent = "已选 " + selectedCards.size + " 张";
+      const visibleSelected = filteredCards.filter(card => selectedCards.has(card.id)).length;
+      document.getElementById("selectedCount").textContent = "已选 " + visibleSelected + " 张";
       document.getElementById("selectPage").checked = filteredCards.length > 0 && filteredCards.every(card => selectedCards.has(card.id));
     }
 
@@ -660,6 +596,7 @@ function serveHCardLibraryAdmin(res) {
       try {
         const includeArchived = document.getElementById("showArchived").checked ? "&archived=1" : "";
         const data = await api("/api/admin/h-cards?all=1&reveal=1" + includeArchived);
+        selectedCards.clear();
         allCards = data.cards;
         const sourceFilter = document.getElementById("sourceFilter");
         const batchFilter = document.getElementById("batchFilter");
@@ -677,11 +614,15 @@ function serveHCardLibraryAdmin(res) {
     }
 
     document.getElementById("refresh").addEventListener("click", loadLibrary);
-    document.getElementById("cardSearch").addEventListener("input", applyFilter);
-    document.getElementById("batchFilter").addEventListener("change", applyFilter);
-    document.getElementById("sourceFilter").addEventListener("change", applyFilter);
-    document.getElementById("cardStatusFilter").addEventListener("change", applyFilter);
-    document.getElementById("dateFilter").addEventListener("change", applyFilter);
+    function clearSelectionAndFilter() {
+      selectedCards.clear();
+      applyFilter();
+    }
+    document.getElementById("cardSearch").addEventListener("input", clearSelectionAndFilter);
+    document.getElementById("batchFilter").addEventListener("change", clearSelectionAndFilter);
+    document.getElementById("sourceFilter").addEventListener("change", clearSelectionAndFilter);
+    document.getElementById("cardStatusFilter").addEventListener("change", clearSelectionAndFilter);
+    document.getElementById("dateFilter").addEventListener("change", clearSelectionAndFilter);
     document.getElementById("showArchived").addEventListener("change", loadLibrary);
     document.getElementById("libraryCards").addEventListener("change", event => {
       const checkbox = event.target.closest(".row-check");
@@ -694,7 +635,7 @@ function serveHCardLibraryAdmin(res) {
       applyFilter();
     }
     function selectedCardRows() {
-      return allCards.filter(card => selectedCards.has(card.id) && card.code);
+      return filteredCards.filter(card => selectedCards.has(card.id) && card.code);
     }
     function cardLink(card) {
       return window.location.origin + "/activate/?provider=h&card=" + encodeURIComponent(card.code);
@@ -777,7 +718,7 @@ function serveHCardLibraryAdmin(res) {
     };
     document.querySelectorAll("[data-bulk-action]").forEach(button => button.onclick = async () => {
       const action = button.dataset.bulkAction;
-      const ids = [...selectedCards];
+      const ids = filteredCards.filter(card => selectedCards.has(card.id)).map(card => card.id);
       if (!ids.length) return setStatus("请先勾选卡密。", true);
       if (!confirm("确认对已选 " + ids.length + " 张卡密执行“" + button.textContent.trim() + "”？")) return;
       try {

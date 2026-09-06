@@ -15,6 +15,80 @@ import {
 
 const store = new JsonStore();
 
+const H_CARD_CODE_PATTERN = /^HPLUS[0-9A-F]{32}$/;
+const H_CARD_STATUS_LABELS = {
+  unused: "未使用",
+  locked: "已锁定",
+  processing: "处理中",
+  success: "充值成功",
+  failed: "充值失败",
+  disabled: "已禁用"
+};
+
+function normalizeHCardCode(value) {
+  const code = String(value || "").trim().toUpperCase();
+  return H_CARD_CODE_PATTERN.test(code) ? code : "";
+}
+
+function maskEmail(value) {
+  const email = String(value || "").trim();
+  const at = email.indexOf("@");
+  if (at <= 0) return "";
+  const local = email.slice(0, at);
+  return `${local.slice(0, 1)}***@${email.slice(at + 1)}`;
+}
+
+function maskAccountId(value) {
+  const accountId = String(value || "").trim();
+  if (!accountId) return "";
+  if (accountId.length <= 8) return `${accountId.slice(0, 1)}***${accountId.slice(-1)}`;
+  return `${accountId.slice(0, 4)}****${accountId.slice(-4)}`;
+}
+
+function maskedBoundAccount(record) {
+  return maskEmail(record.boundEmail) || maskAccountId(record.boundAccountId);
+}
+
+function publicHCardMessage(status) {
+  if (status === "unused") return "这张卡密尚未使用，可以继续完成充值。";
+  if (status === "locked") return "这张卡密已经锁定，请勿重复提交；如需处理请联系客服。";
+  if (status === "processing") return "充值正在处理中，请耐心等待，不要重复提交。";
+  if (status === "success") return "这张卡密对应的充值已经完成。";
+  if (status === "failed") return "本次充值未成功，请联系客服核查。";
+  return "这张卡密当前不可使用，请联系客服处理。";
+}
+
+function simplifyHCardFailure(message) {
+  const value = String(message || "");
+  if (/余额|可用卡|卡池|card.*(?:unavailable|balance)/i.test(value)) return "嗨付卡池暂不可用";
+  if (/认证|登录|api\s*key|unauthori[sz]ed|forbidden/i.test(value)) return "通道认证异常";
+  if (/网络|超时|timeout|fetch|socket|connect/i.test(value)) return "通道网络异常";
+  if (/支付|payment/i.test(value)) return "支付未成功";
+  return "充值未成功，需人工核查";
+}
+
+function parseHCardBatchLine(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return { ok: false, message: "空行" };
+  const directCode = normalizeHCardCode(raw);
+  if (directCode) return { ok: true, code: directCode };
+
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    return { ok: false, message: "卡密格式不正确" };
+  }
+  if (!['http:', 'https:'].includes(parsed.protocol) || !["gptc.cc", "www.gptc.cc"].includes(parsed.hostname.toLowerCase())) {
+    return { ok: false, message: "仅支持 gptc.cc 充值链接" };
+  }
+  if (String(parsed.searchParams.get("provider") || "").trim().toLowerCase() !== "h") {
+    return { ok: false, message: "链接不是 h 通道" };
+  }
+  const code = normalizeHCardCode(parsed.searchParams.get("card"));
+  return code ? { ok: true, code } : { ok: false, message: "链接缺少完整 h 卡密" };
+}
+
 function defaultProvider() {
   return normalizeProvider(store.getSettings().defaultProvider, normalizeProvider(config.defaultProvider));
 }
@@ -246,6 +320,85 @@ export const rechargeService = {
 
   listHCards(limit = 100, all = false, reveal = false, includeArchived = false) {
     return { ok: true, status: 200, data: { cards: store.listHCards(limit, all, reveal, includeArchived) } };
+  },
+
+  queryHCardStatus(cardInfo, provider) {
+    if (String(provider || "").trim().toLowerCase() !== "h") {
+      return { ok: false, status: 400, message: "仅支持查询 h 通道卡密。" };
+    }
+    const code = normalizeHCardCode(cardInfo);
+    if (!code) return { ok: false, status: 400, message: "请输入完整的 HPLUS 卡密。" };
+    const record = store.queryHCardsByCodes([code])[0];
+    if (!record?.found) return { ok: false, status: 404, message: "未查询到这张卡密，请核对后重新输入。" };
+    return {
+      ok: true,
+      status: 200,
+      data: {
+        status: record.status,
+        statusLabel: H_CARD_STATUS_LABELS[record.status],
+        boundAccount: maskedBoundAccount(record),
+        canRecharge: record.status === "unused",
+        message: publicHCardMessage(record.status)
+      }
+    };
+  },
+
+  batchQueryHCards(inputs) {
+    const lines = Array.isArray(inputs) ? inputs.map(value => String(value || "").trim()).filter(Boolean) : [];
+    if (!lines.length) return { ok: false, status: 400, message: "请至少输入一张卡密。" };
+    if (lines.length > 100) return { ok: false, status: 400, message: "每次最多查询 100 张卡密。" };
+
+    const parsed = lines.map(parseHCardBatchLine);
+    const validCodes = parsed.filter(item => item.ok).map(item => item.code);
+    const records = store.queryHCardsByCodes(validCodes);
+    let recordIndex = 0;
+    const results = parsed.map((item, index) => {
+      if (!item.ok) {
+        return {
+          sequence: index + 1,
+          code: "",
+          status: "invalid",
+          statusLabel: "无效输入",
+          boundAccount: "",
+          source: "",
+          batchId: "",
+          createdAt: "",
+          submittedAt: "",
+          completedAt: "",
+          failureReason: item.message
+        };
+      }
+      const record = records[recordIndex++];
+      if (!record?.found) {
+        return {
+          sequence: index + 1,
+          code: item.code,
+          status: "not_found",
+          statusLabel: "未找到",
+          boundAccount: "",
+          source: "",
+          batchId: "",
+          createdAt: "",
+          submittedAt: "",
+          completedAt: "",
+          failureReason: "本站数据库中没有这张卡密"
+        };
+      }
+      return {
+        sequence: index + 1,
+        code: record.code,
+        status: record.status,
+        statusLabel: H_CARD_STATUS_LABELS[record.status],
+        boundAccount: [record.boundEmail, record.boundAccountId].filter(Boolean).join(" / "),
+        source: record.source,
+        batchId: record.batchId,
+        createdAt: record.createdAt,
+        submittedAt: record.submittedAt,
+        completedAt: record.completedAt,
+        failureReason: record.status === "failed" ? simplifyHCardFailure(record.failureMessage) : ""
+      };
+    });
+    return { ok: true, status: 200, data: { results, totalCount: results.length } };
   },
 
   async refreshHifupayCards() {

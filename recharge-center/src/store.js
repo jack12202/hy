@@ -81,6 +81,25 @@ function maxIsoDate(values = []) {
   return dates[0]?.value || "";
 }
 
+function hCardQueryStatus(card, order) {
+  if (card.disabledAt || card.archivedAt || card.status === "expired") return "disabled";
+  if (card.status === "unused") return "unused";
+  if (card.status === "used" || order?.status === "success") return "success";
+  if (order?.status === "failed") return "failed";
+  if (
+    card.status === "reserved" ||
+    ["created", "queued", "processing", "syncing", "needs_review"].includes(order?.status)
+  ) return "processing";
+  return "locked";
+}
+
+function hCardCompletedAt(card, order, status) {
+  if (status === "success") return card.usedAt || order?.manualCompletedAt || order?.updatedAt || "";
+  if (status === "failed") return order?.updatedAt || "";
+  if (status === "disabled") return card.disabledAt || card.archivedAt || card.updatedAt || "";
+  return "";
+}
+
 function protectionKey() {
   return config.recoveryEncryptionKey || config.adminToken || "local-development-only";
 }
@@ -612,6 +631,48 @@ export class JsonStore {
     if (!normalized) return null;
     const state = this.read();
     return state.hCards.find(card => card.codeHash === cardCodeHash(normalized)) || null;
+  }
+
+  queryHCardsByCodes(cardCodes = []) {
+    const normalizedCodes = (Array.isArray(cardCodes) ? cardCodes : [])
+      .map(code => String(code || "").trim().toUpperCase());
+    const state = this.read();
+    const cardsByHash = new Map(
+      state.hCards
+        .filter(card => card.provider === "h")
+        .map(card => [card.codeHash, card])
+    );
+    const ordersById = new Map(state.orders.map(order => [order.id, order]));
+    const latestOrdersByCardId = new Map();
+
+    for (const order of state.orders) {
+      if (order.provider !== "h" || !order.hCardId) continue;
+      const current = latestOrdersByCardId.get(order.hCardId);
+      if (!current || String(order.updatedAt || order.createdAt).localeCompare(String(current.updatedAt || current.createdAt)) > 0) {
+        latestOrdersByCardId.set(order.hCardId, order);
+      }
+    }
+
+    return normalizedCodes.map(code => {
+      const card = cardsByHash.get(cardCodeHash(code));
+      if (!card) return { code, found: false };
+      const order = (card.orderId && ordersById.get(card.orderId)) || latestOrdersByCardId.get(card.id) || null;
+      const status = hCardQueryStatus(card, order);
+      return {
+        code,
+        found: true,
+        provider: card.provider,
+        status,
+        boundEmail: card.boundEmail || "",
+        boundAccountId: card.boundAccountId || "",
+        source: card.source || "未分类",
+        batchId: card.batchId || "",
+        createdAt: card.createdAt || "",
+        submittedAt: card.submittedAt || card.boundAt || "",
+        completedAt: hCardCompletedAt(card, order, status),
+        failureMessage: status === "failed" ? order?.message || "" : ""
+      };
+    });
   }
 
   verifyHCard(cardCode) {

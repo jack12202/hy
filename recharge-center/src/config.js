@@ -35,6 +35,8 @@ export const config = {
   hifupaySafetyBufferUsd: Number(process.env.HIFUPAY_SAFETY_BUFFER_USD || 0),
   hifupayProductId: Number(process.env.HIFUPAY_PRODUCT_ID || 3),
   adminToken: process.env.ADMIN_TOKEN || "",
+  hCardQueryMinuteLimit: Number(process.env.H_CARD_QUERY_MINUTE_LIMIT || 10),
+  hCardQueryHourLimit: Number(process.env.H_CARD_QUERY_HOUR_LIMIT || 60),
   recoveryEncryptionKey: process.env.RECOVERY_ENCRYPTION_KEY || "",
   dataFile: process.env.DATA_FILE || path.join(rootDir, "data", "orders.json"),
   logFile: process.env.LOG_FILE || path.join(rootDir, "logs", "server.log"),

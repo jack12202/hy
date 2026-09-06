@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>批量查询｜卡密工作台</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; padding: 20px; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; color: #132033; background: #f4f7fb; }
+    main { width: min(1320px, 100%); margin: 0 auto; }
+    section { margin-bottom: 16px; padding: 22px; border: 1px solid #dbe4ee; border-radius: 14px; background: #fff; box-shadow: 0 18px 48px rgba(15, 23, 42, .08); }
+    h1 { margin: 0 0 8px; font-size: 26px; }
+    p, .hint { color: #64748b; line-height: 1.6; }
+    .top, .actions, .toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; }
+    .actions, .toolbar { justify-content: flex-start; }
+    a, button { min-height: 42px; padding: 0 14px; border-radius: 10px; font: inherit; font-weight: 900; }
+    a { display: inline-flex; align-items: center; color: #0f766e; background: #ecfdf5; border: 1px solid #99f6e4; text-decoration: none; }
+    button { border: 0; color: #fff; background: #0f766e; cursor: pointer; }
+    button.secondary { color: #0f766e; background: #ecfdf5; border: 1px solid #99f6e4; }
+    button:disabled { cursor: not-allowed; opacity: .55; }
+    label { display: grid; gap: 8px; font-weight: 800; }
+    input, textarea, select { width: 100%; border: 1px solid #cbd5e1; border-radius: 10px; padding: 11px 12px; background: #fff; font: inherit; }
+    textarea { min-height: 190px; resize: vertical; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; line-height: 1.55; }
+    .auth { max-width: 620px; margin-top: 16px; }
+    .query { margin-top: 16px; }
+    .toolbar { margin-top: 14px; }
+    .toolbar label { min-width: 190px; }
+    .status { margin-top: 14px; padding: 12px; border: 1px solid #bfdbfe; border-radius: 10px; color: #1e3a8a; background: #eff6ff; white-space: pre-wrap; }
+    .status.error { color: #9f1239; border-color: #fda4af; background: #fff1f2; }
+    .table { margin-top: 14px; overflow: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th, td { padding: 10px 8px; border-bottom: 1px solid #e2e8f0; text-align: left; vertical-align: top; white-space: nowrap; }
+    th { color: #475569; }
+    td.code { min-width: 300px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    td.reason { min-width: 180px; white-space: normal; }
+    .badge { display: inline-block; padding: 4px 8px; border-radius: 999px; color: #1e3a8a; background: #dbeafe; font-weight: 900; }
+    .badge.success, .badge.unused { color: #047857; background: #d1fae5; }
+    .badge.failed, .badge.disabled, .badge.invalid { color: #be123c; background: #ffe4e6; }
+    .badge.processing, .badge.locked, .badge.not_found { color: #c2410c; background: #ffedd5; }
+    @media (max-width: 640px) { body { padding: 12px; } section { padding: 16px; } .actions a, .actions button { width: 100%; justify-content: center; } }
+  </style>
+</head>
+<body>
+  <main>
+    <section>
+      <div class="top">
+        <div><h1>批量查询</h1><p>每行一张完整 HPLUS 卡密，或一条带 provider=h 和 card 参数的 gptc.cc 充值链接，最多 100 张。</p></div>
+        <div class="actions"><a href="/admin/cards">卡密生成</a><a href="/admin/cards/library">卡密库</a></div>
+      </div>
+      <label class="auth">管理密码<input id="adminToken" type="password" autocomplete="current-password" placeholder="请输入 ADMIN_TOKEN"></label>
+      <label class="query">卡密或充值链接<textarea id="inputs" spellcheck="false" placeholder="HPLUS...&#10;https://www.gptc.cc/activate/?provider=h&amp;card=HPLUS..."></textarea></label>
+      <div class="toolbar">
+        <button id="query" type="button">开始查询</button>
+        <label>状态筛选<select id="statusFilter"><option value="">全部状态</option><option value="unused">未使用</option><option value="locked">已锁定</option><option value="processing">处理中</option><option value="success">充值成功</option><option value="failed">充值失败</option><option value="disabled">已禁用</option><option value="not_found">未找到</option><option value="invalid">无效输入</option></select></label>
+        <button class="secondary" id="copy" type="button" disabled>复制当前结果</button>
+        <span id="count">0 条</span>
+      </div>
+      <div class="status" id="status">输入管理密码和卡密后开始查询。此页面只读取本站数据库。</div>
+      <div class="table">
+        <table>
+          <thead><tr><th>序号</th><th>完整卡密</th><th>状态</th><th>绑定账号</th><th>来源</th><th>批次</th><th>生成时间</th><th>提交时间</th><th>完成时间</th><th>简化失败原因</th></tr></thead>
+          <tbody id="results"><tr><td colspan="10">暂无查询结果</td></tr></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <script>
+    const tokenInput = document.getElementById("adminToken");
+    const inputBox = document.getElementById("inputs");
+    const statusBox = document.getElementById("status");
+    const filter = document.getElementById("statusFilter");
+    const copyButton = document.getElementById("copy");
+    const params = new URLSearchParams(location.search);
+    const hash = new URLSearchParams(location.hash.replace(/^#/, ""));
+    const tokenFromQuery = params.get("token") || "";
+    const token = hash.get("token") || tokenFromQuery || localStorage.getItem("gptcProviderAdminToken") || "";
+    tokenInput.value = token;
+    if (token) localStorage.setItem("gptcProviderAdminToken", token);
+    if (tokenFromQuery) history.replaceState(null, "", location.pathname + (location.hash || ""));
+
+    let allResults = [];
+    let visibleResults = [];
+    const headers = ["序号", "完整卡密", "状态", "绑定账号", "来源", "批次", "生成时间", "提交时间", "完成时间", "简化失败原因"];
+
+    function esc(value) {
+      return String(value ?? "").replace(/[&<>"']/g, character => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[character]));
+    }
+    function date(value) {
+      if (!value) return "-";
+      const parsed = new Date(value);
+      return Number.isNaN(parsed.getTime()) ? "-" : parsed.toLocaleString("zh-CN", { hour12: false });
+    }
+    function setStatus(message, error = false) {
+      statusBox.textContent = message;
+      statusBox.classList.toggle("error", error);
+    }
+    function values(row) {
+      return [row.sequence, row.code || "-", row.statusLabel, row.boundAccount || "-", row.source || "-", row.batchId || "-", date(row.createdAt), date(row.submittedAt), date(row.completedAt), row.failureReason || "-"];
+    }
+    function render() {
+      visibleResults = allResults.filter(row => !filter.value || row.status === filter.value);
+      document.getElementById("results").innerHTML = visibleResults.map(row => {
+        const cells = values(row);
+        return '<tr><td>' + esc(cells[0]) + '</td><td class="code">' + esc(cells[1]) + '</td><td><span class="badge ' + esc(row.status) + '">' + esc(cells[2]) + '</span></td><td>' + esc(cells[3]) + '</td><td>' + esc(cells[4]) + '</td><td>' + esc(cells[5]) + '</td><td>' + esc(cells[6]) + '</td><td>' + esc(cells[7]) + '</td><td>' + esc(cells[8]) + '</td><td class="reason">' + esc(cells[9]) + '</td></tr>';
+      }).join("") || '<tr><td colspan="10">暂无匹配结果</td></tr>';
+      document.getElementById("count").textContent = visibleResults.length + " / " + allResults.length + " 条";
+      copyButton.disabled = visibleResults.length === 0;
+    }
+    async function api(path, options = {}) {
+      const currentToken = tokenInput.value.trim();
+      if (!currentToken) throw new Error("请先输入管理密码。");
+      localStorage.setItem("gptcProviderAdminToken", currentToken);
+      const response = await fetch(path, { ...options, headers: { "Content-Type": "application/json", "X-Admin-Token": currentToken, ...(options.headers || {}) } });
+      const data = await response.json();
+      if (!data.success) throw new Error(data.message || "查询失败。");
+      return data.data;
+    }
+    document.getElementById("query").onclick = async () => {
+      const inputs = inputBox.value.split(/\r?\n/).map(value => value.trim()).filter(Boolean);
+      if (!inputs.length) return setStatus("请至少输入一张卡密。", true);
+      if (inputs.length > 100) return setStatus("每次最多查询 100 张卡密。", true);
+      const button = document.getElementById("query");
+      button.disabled = true;
+      button.textContent = "查询中...";
+      try {
+        const data = await api("/api/admin/h-cards/query", { method: "POST", body: JSON.stringify({ inputs }) });
+        allResults = data.results || [];
+        render();
+        setStatus("查询完成，共返回 " + allResults.length + " 条结果。查询过程未调用嗨付接口，也未改变卡密状态。");
+      } catch (error) {
+        setStatus(error.message || "查询失败，请稍后重试。", true);
+      } finally {
+        button.disabled = false;
+        button.textContent = "开始查询";
+      }
+    };
+    filter.onchange = render;
+    copyButton.onclick = async () => {
+      const text = [headers, ...visibleResults.map(values)].map(row => row.join("\t")).join("\n");
+      try {
+        await navigator.clipboard.writeText(text);
+        setStatus("已复制当前 " + visibleResults.length + " 条查询结果。");
+      } catch {
+        setStatus("复制失败，请手动选择表格内容。", true);
+      }
+    };
+  </script>
+</body>
+</html>

@@ -1,6 +1,7 @@
 import fs from "node:fs";
 import http from "node:http";
 import path from "node:path";
+import { fileURLToPath } from "node:url";
 import { config } from "./config.js";
 import { rechargeService } from "./recharge-service.js";
 import { readJsonBody, sendJson } from "./utils.js";
@@ -23,6 +24,50 @@ function servePrototype(res) {
     "Cache-Control": "no-store"
   });
   res.end(html);
+}
+
+function serveHCardBatchAdmin(res) {
+  const html = fs.readFileSync(path.join(config.rootDir, "admin", "h-card-batch.html"), "utf8");
+  res.writeHead(200, {
+    "Content-Type": "text/html; charset=utf-8",
+    "Cache-Control": "no-store",
+    "Referrer-Policy": "no-referrer"
+  });
+  res.end(html);
+}
+
+function clientIp(req) {
+  const realIp = req.headers["x-real-ip"];
+  if (typeof realIp === "string" && realIp.trim()) return realIp.trim().slice(0, 80);
+  return String(req.socket.remoteAddress || "unknown").slice(0, 80);
+}
+
+function createHCardQueryRateLimiter() {
+  const minuteLimit = Math.max(Number(config.hCardQueryMinuteLimit) || 10, 1);
+  const hourLimit = Math.max(Number(config.hCardQueryHourLimit) || 60, minuteLimit);
+  const attempts = new Map();
+  return {
+    check(req) {
+      const now = Date.now();
+      const hourAgo = now - 60 * 60 * 1000;
+      const minuteAgo = now - 60 * 1000;
+      const ip = clientIp(req);
+      const recent = (attempts.get(ip) || []).filter(timestamp => timestamp > hourAgo);
+      const minuteCount = recent.filter(timestamp => timestamp > minuteAgo).length;
+      if (minuteCount >= minuteLimit || recent.length >= hourLimit) {
+        attempts.set(ip, recent);
+        return { ok: false, retryAfter: minuteCount >= minuteLimit ? 60 : 3600 };
+      }
+      recent.push(now);
+      attempts.set(ip, recent);
+      if (attempts.size > 2000) {
+        for (const [key, timestamps] of attempts) {
+          if (!timestamps.some(timestamp => timestamp > hourAgo)) attempts.delete(key);
+        }
+      }
+      return { ok: true };
+    }
+  };
 }
 
 function adminProviderLabel(provider, publicLabel) {
@@ -310,7 +355,7 @@ function serveHCardAdmin(res) {
         <button id="generate" type="button">生成卡密</button>
       </div>
       <div class="status" id="statusBox">输入管理密码，选择数量和来源后生成。</div>
-      <div class="page-actions"><a class="action-link" href="/admin/cards/library">卡密库</a><a class="action-link" href="/admin/hifupay/cards">嗨付卡池</a><a class="action-link" href="/admin/recoveries">充值记录</a></div>
+      <div class="page-actions"><a class="action-link" href="/admin/cards/library">卡密库</a><a class="action-link" href="/admin/cards/batch">批量查询</a><a class="action-link" href="/admin/hifupay/cards">嗨付卡池</a><a class="action-link" href="/admin/recoveries">充值记录</a></div>
       <div class="summary" id="batchSummary"></div>
       <div class="batch-meta" id="batchMeta" hidden></div>
       <div class="output-actions" id="outputActions"><button class="secondary" id="copyCodes">复制全部卡密</button><button class="secondary" id="copyLinks">复制全部链接</button><button class="secondary" id="downloadLinkZip">下载链接 ZIP</button></div>
@@ -525,7 +570,7 @@ function serveHCardLibraryAdmin(res) {
     <section>
       <div class="topbar">
         <div><h1>h 通道卡密库</h1><p class="hint">按来源、状态和生成日期筛选，支持批量管理。提交过资料的卡密只能归档，不能删除。</p></div>
-        <div class="top-actions"><a class="back-link" href="/admin/cards">返回生成页</a><a class="back-link" href="/admin/hifupay/cards">嗨付卡池</a><a class="back-link" href="/admin/recoveries">充值记录</a><button class="secondary" id="refresh" type="button">刷新列表</button></div>
+        <div class="top-actions"><a class="back-link" href="/admin/cards">返回生成页</a><a class="back-link" href="/admin/cards/batch">批量查询</a><a class="back-link" href="/admin/hifupay/cards">嗨付卡池</a><a class="back-link" href="/admin/recoveries">充值记录</a><button class="secondary" id="refresh" type="button">刷新列表</button></div>
       </div>
       <label>
         管理密码
@@ -1117,7 +1162,9 @@ function assertAdmin(req, url, body = {}) {
   return { ok: true };
 }
 
-const server = http.createServer(async (req, res) => {
+const hCardQueryRateLimiter = createHCardQueryRateLimiter();
+
+export const server = http.createServer(async (req, res) => {
   try {
     const url = new URL(req.url || "/", `http://${req.headers.host || "localhost"}`);
 
@@ -1138,6 +1185,11 @@ const server = http.createServer(async (req, res) => {
 
     if (req.method === "GET" && (url.pathname === "/admin/cards/library" || url.pathname === "/admin/cards/library/")) {
       serveHCardLibraryAdmin(res);
+      return;
+    }
+
+    if (req.method === "GET" && (url.pathname === "/admin/cards/batch" || url.pathname === "/admin/cards/batch/")) {
+      serveHCardBatchAdmin(res);
       return;
     }
 
@@ -1212,6 +1264,22 @@ const server = http.createServer(async (req, res) => {
         ["1", "true"].includes(url.searchParams.get("archived"))
       );
       sendJson(res, result.status, { success: true, data: result.data });
+      return;
+    }
+
+    if (req.method === "POST" && url.pathname === "/api/admin/h-cards/query") {
+      const body = await readJsonBody(req);
+      const auth = assertAdmin(req, url, body);
+      if (!auth.ok) {
+        sendJson(res, auth.status, { success: false, message: auth.message });
+        return;
+      }
+      try {
+        const result = rechargeService.batchQueryHCards(body.inputs);
+        sendJson(res, result.status, result.ok ? { success: true, data: result.data } : { success: false, message: result.message });
+      } catch {
+        sendJson(res, 500, { success: false, message: "批量查询暂不可用，请稍后重试。" });
+      }
       return;
     }
 
@@ -1360,6 +1428,23 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    if (req.method === "POST" && url.pathname === "/api/recharge/h-card-status") {
+      const rate = hCardQueryRateLimiter.check(req);
+      if (!rate.ok) {
+        res.setHeader("Retry-After", String(rate.retryAfter));
+        sendJson(res, 429, { success: false, message: "查询过于频繁，请稍后再试。" });
+        return;
+      }
+      try {
+        const body = await readJsonBody(req);
+        const result = rechargeService.queryHCardStatus(body.cardInfo, body.provider);
+        sendJson(res, result.status, result.ok ? { success: true, data: result.data } : { success: false, message: result.message });
+      } catch {
+        sendJson(res, 500, { success: false, message: "卡密状态查询暂不可用，请稍后重试。" });
+      }
+      return;
+    }
+
     if (req.method === "POST" && url.pathname === "/api/recharge/query-card-status") {
       const body = await readJsonBody(req);
       const result = await rechargeService.queryCardStatus(body.cardInfo, body.provider);
@@ -1404,6 +1489,9 @@ const server = http.createServer(async (req, res) => {
   }
 });
 
-server.listen(config.port, config.host, () => {
-  console.log(`Recharge center MVP listening on http://${config.host}:${config.port}`);
-});
+const isMainModule = process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url);
+if (isMainModule) {
+  server.listen(config.port, config.host, () => {
+    console.log(`Recharge center MVP listening on http://${config.host}:${config.port}`);
+  });
+}

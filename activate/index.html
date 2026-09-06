@@ -929,7 +929,7 @@ window._hmt = _hmt;
           </div>
           <div class="btn-row">
             <button class="primary" type="button" id="verifyCardBtn" onclick="verifyCard()">验证激活码</button>
-            <button class="secondary" type="button" id="queryCardStatusBtn" onclick="queryCardStatusFromInput()">充值结果查询</button>
+            <button class="secondary" type="button" id="queryCardStatusBtn" onclick="queryCardStatusFromInput()">查询卡密状态</button>
             <a rel="noopener" target="_blank" class="link-btn secondary" href="https://fe.dtyuedan.cn/shop/jiage">去购买激活码</a>
           </div>
           <div class="notice is-empty" id="step1Notice"></div>
@@ -1406,7 +1406,25 @@ window._hmt = _hmt;
       button.disabled = true;
       button.textContent = "查询中...";
       try {
-        if (currentProvider === "xiaoyu") {
+        const isHCardQuery = currentProvider === "h" || /^HPLUS/i.test(cardInfo);
+        if (isHCardQuery) {
+          const data = await postJson("/api/recharge/h-card-status", {
+            cardInfo,
+            provider: "h"
+          });
+          if (!data.success) {
+            throw new Error(data.message || "卡密状态查询失败，请稍后重试。");
+          }
+          const result = data.data || {};
+          const account = result.boundAccount ? ` 绑定账号：${result.boundAccount}。` : "";
+          const nextStep = result.canRecharge ? " 你可以点击“验证激活码”继续充值。" : "";
+          const noticeType = result.status === "failed" || result.status === "disabled"
+            ? "error"
+            : result.status === "unused" || result.status === "success"
+              ? "success"
+              : "info";
+          setNotice("step1Notice", result.statusLabel || "卡密状态", (result.message || "查询完成。") + account + nextStep, noticeType);
+        } else if (currentProvider === "xiaoyu") {
           const data = await postJson("/api/recharge/query-task-status", {
             taskId: cardInfo,
             cardInfo,
@@ -1446,7 +1464,7 @@ window._hmt = _hmt;
         setNotice("step1Notice", "充值结果查询失败", error.message || "请稍后重试或联系人工。", "error");
       } finally {
         button.disabled = false;
-        button.textContent = "充值结果查询";
+        button.textContent = "查询卡密状态";
       }
     }
 

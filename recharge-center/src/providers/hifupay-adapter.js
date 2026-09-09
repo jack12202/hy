@@ -54,6 +54,17 @@ function normalizeStart(raw, cardId, hifupayCardId) {
   };
 }
 
+function cancellationStatusFromLogs(logs) {
+  const failurePattern = /(?:取消|关闭|禁用)自动续费.*(?:失败|未成功)|自动续费.*(?:取消|关闭|禁用).*(?:失败|未成功)|\[renewal_cancellation\].*(?:fail|error|404|session refresh failed)/i;
+  const successPattern = /自动续费已(?:取消|关闭|禁用)|自动续费(?:取消|关闭|禁用)(?:成功|完成)|已(?:成功)?(?:取消|关闭|禁用)自动续费|(?:取消|关闭|禁用)自动续费.*(?:成功|完成)|\[renewal_cancellation\].*(?:renewal\s+(?:disabled|cancelled|canceled)|success|succeeded|done|completed)/i;
+  for (let index = logs.length - 1; index >= 0; index -= 1) {
+    const line = typeof logs[index] === "string" ? logs[index] : JSON.stringify(logs[index]);
+    if (failurePattern.test(line)) return "failed";
+    if (successPattern.test(line)) return "cancelled";
+  }
+  return "";
+}
+
 function extractCards(raw) {
   const body = raw?.data && typeof raw.data === "object" ? raw.data : {};
   const nested = body.data && typeof body.data === "object" ? body.data : {};
@@ -77,15 +88,12 @@ function normalizeStatus(raw) {
   const logs = Array.isArray(body.logs) ? body.logs : [];
   const logText = logs.map(item => typeof item === "string" ? item : JSON.stringify(item)).join("\n");
   const paymentSucceeded = body.paymentConfirmed === true || /payment succeeded|支付成功|充值已成功/i.test(logText);
-  const cancellationFailed = /取消自动续费失败|关闭自动续费失败|renewal_cancellation.*(?:fail|404)/i.test(logText);
-  const cancellationSucceeded = body.autoCancelDone === true || /(?:取消自动续费|关闭自动续费|renewal_cancellation).*(?:成功|success|done)/i.test(logText);
+  const loggedCancellationStatus = cancellationStatusFromLogs(logs);
   const subscriptionCancellationStatus = !paymentSucceeded
     ? "not_started"
-    : cancellationFailed
-      ? "failed"
-      : cancellationSucceeded
-        ? "cancelled"
-        : "pending";
+    : body.autoCancelDone === true
+      ? "cancelled"
+      : loggedCancellationStatus || "pending";
   const status = paymentSucceeded
     ? "success"
     : upstreamStatus === "completed"

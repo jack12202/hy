@@ -81,18 +81,17 @@ function hSubscriptionPatch(order, taskData, nextStatus) {
     : now.getTime() + Math.max(Number(config.hSubscriptionFollowUpSeconds) || 120, 30) * 1000;
   const timedOut = configuredStatus === "pending" && now.getTime() >= deadline;
   const status = timedOut ? "unknown" : configuredStatus;
-  const actionRequired = status === "failed" || status === "unknown";
+  const actionRequired = status === "failed";
   const actionMessage = status === "failed"
     ? "充值成功，但自动续费未关闭，请联系用户手动取消连续订阅。"
-    : status === "unknown"
-      ? "充值成功，但自动续费状态未确认，请联系用户检查并手动取消连续订阅。"
-      : "";
+    : "";
   return {
     subscriptionCancellationStatus: status,
     subscriptionActionRequired: actionRequired,
     subscriptionActionMessage: actionMessage,
     subscriptionActionDetectedAt: actionRequired ? order.subscriptionActionDetectedAt || now.toISOString() : "",
     subscriptionFollowUpUntil: new Date(deadline).toISOString(),
+    subscriptionClassifierVersion: taskData.paymentConfirmed === true ? 2 : Number(order.subscriptionClassifierVersion || 0),
     lastStatusSyncAt: now.toISOString(),
     ...(status === "cancelled" ? {
       subscriptionActionRequired: false,
@@ -104,7 +103,7 @@ function hSubscriptionPatch(order, taskData, nextStatus) {
 
 function hSubscriptionMessage(defaultMessage, patch) {
   if (patch.subscriptionCancellationStatus === "failed") return "充值成功，但自动续费关闭失败，请用户手动关闭自动续费。";
-  if (patch.subscriptionCancellationStatus === "unknown") return "充值成功，但自动续费状态未确认，请用户手动检查并关闭自动续费。";
+  if (patch.subscriptionCancellationStatus === "unknown") return "充值成功，自动续费状态暂未确认。";
   if (patch.subscriptionCancellationStatus === "cancelled") return "充值成功，自动续费已关闭。";
   if (patch.subscriptionCancellationStatus === "pending") return "充值成功，正在确认自动续费关闭结果。";
   return defaultMessage;
@@ -576,7 +575,8 @@ export const rechargeService = {
         const response = await fetch(config.adminAlertWebhookUrl, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(adminAlertWebhookPayload(record))
+          body: JSON.stringify(adminAlertWebhookPayload(record)),
+          signal: AbortSignal.timeout(5000)
         });
         notified = response.ok;
       } catch {
@@ -588,15 +588,15 @@ export const rechargeService = {
     return { sentCount, skipped: false };
   },
 
-  async reconcileHSubscriptionStatuses() {
+  async reconcileHSubscriptionStatuses({ limit = 20 } = {}) {
     const orders = store.listHOrdersForSubscriptionSync({
       lookbackHours: config.hSubscriptionSyncLookbackHours,
-      limit: 20
+      limit
     });
     let updatedCount = 0;
     for (const order of orders) {
       try {
-        const result = await this.queryTaskStatus({ orderId: order.id }, { forceRefresh: true });
+        const result = await this.queryTaskStatus({ orderId: order.id }, { forceRefresh: true, suppressAlertDispatch: true });
         if (result.ok) updatedCount += 1;
       } catch {
         // 单笔同步失败不影响其他订单，下一轮会继续尝试。
@@ -1100,6 +1100,10 @@ export const rechargeService = {
         ...subscriptionPatch,
         lastStatusSyncAt: subscriptionPatch.lastStatusSyncAt || new Date().toISOString()
       });
+
+      if (selectedProvider === "h" && subscriptionPatch.subscriptionActionRequired && !options.suppressAlertDispatch) {
+        await this.dispatchHSubscriptionAlerts();
+      }
 
       store.addLog({
         orderId: order.id,

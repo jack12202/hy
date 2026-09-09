@@ -1511,18 +1511,10 @@ if (isMainModule) {
   server.listen(config.port, config.host, () => {
     console.log(`Recharge center MVP listening on http://${config.host}:${config.port}`);
   });
-  let hSubscriptionSyncRunning = false;
-  const runHSubscriptionSync = async () => {
-    if (hSubscriptionSyncRunning) return;
-    hSubscriptionSyncRunning = true;
-    try {
-      await rechargeService.reconcileHSubscriptionStatuses();
-    } finally {
-      hSubscriptionSyncRunning = false;
-    }
-  };
-  const initialSyncTimer = setTimeout(runHSubscriptionSync, 5000);
-  const syncTimer = setInterval(runHSubscriptionSync, Math.max(Number(config.hSubscriptionSyncIntervalMs) || 15000, 5000));
+  const initialSyncTimer = setTimeout(() => {
+    rechargeService.reconcileHSubscriptionStatuses({ limit: 100 }).catch(() => {
+      // 旧记录纠正失败不影响服务启动，也不会启动常驻轮询。
+    });
+  }, 5000);
   initialSyncTimer.unref?.();
-  syncTimer.unref?.();
 }

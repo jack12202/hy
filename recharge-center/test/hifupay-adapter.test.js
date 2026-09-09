@@ -61,10 +61,19 @@ test("hifupay adapter submits Plus PH tasks and normalizes polling status", asyn
             paymentConfirmed: true,
             autoCancelDone: true,
             account: "test@example.com"
-          } : {
+          } : pollCount === 3 ? {
             status: "failed",
             paymentConfirmed: false,
             logs: ["[payment_confirm] payment succeeded", "取消自动续费失败 HTTP 404"]
+          } : {
+            status: "completed",
+            paymentConfirmed: false,
+            logs: [
+              "[payment_confirm] payment succeeded",
+              "[renewal_cancellation] session refresh failed",
+              "[renewal_cancellation] renewal disabled on attempt 1",
+              "✅ 自动续费已取消"
+            ]
           });
       return;
     }
@@ -146,6 +155,11 @@ test("hifupay adapter submits Plus PH tasks and normalizes polling status", asyn
   assert.equal(cancellationWarning.data.subscriptionCancellationStatus, "failed");
   assert.equal(cancellationWarning.data.subscriptionActionRequired, true);
   assert.match(cancellationWarning.data.message, /自动续费关闭失败/);
+  const cancellationRecovered = await hifupayAdapter.queryTaskStatus({ taskId: "H-TASK-1" });
+  assert.equal(cancellationRecovered.data.status, "success");
+  assert.equal(cancellationRecovered.data.subscriptionCancellationStatus, "cancelled");
+  assert.equal(cancellationRecovered.data.subscriptionActionRequired, false);
+  assert.match(cancellationRecovered.data.message, /自动续费已关闭/);
   assert.equal(new JsonStore(dataFile).completeHCard(card.id, "order_h_test"), true);
   assert.equal(new JsonStore(dataFile).getHCardByCode(card.code).status, "used");
 

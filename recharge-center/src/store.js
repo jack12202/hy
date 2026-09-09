@@ -202,6 +202,7 @@ export class JsonStore {
       subscriptionAlertAttemptedAt: input.subscriptionAlertAttemptedAt || "",
       subscriptionAlertNotifiedAt: input.subscriptionAlertNotifiedAt || "",
       subscriptionFollowUpUntil: input.subscriptionFollowUpUntil || "",
+      subscriptionClassifierVersion: Number(input.subscriptionClassifierVersion || 0),
       lastStatusSyncAt: input.lastStatusSyncAt || "",
       overwriteRecharge: Boolean(input.overwriteRecharge),
       createdAt: nowIso(),
@@ -244,7 +245,8 @@ export class JsonStore {
         }
         if (order.status !== "success") return false;
         const cancellationStatus = order.subscriptionCancellationStatus || "";
-        if (["cancelled", "failed", "unknown"].includes(cancellationStatus)) return false;
+        if (cancellationStatus === "cancelled") return false;
+        if (["failed", "unknown"].includes(cancellationStatus) && Number(order.subscriptionClassifierVersion || 0) >= 2) return false;
         return Number.isFinite(createdAt) && createdAt >= successCutoff;
       })
       .sort((left, right) => String(left.lastStatusSyncAt || left.updatedAt || left.createdAt).localeCompare(String(right.lastStatusSyncAt || right.updatedAt || right.createdAt)))

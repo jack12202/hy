@@ -49,6 +49,27 @@ test("h subscription state is backfilled after payment success and alerts admini
       sendJson(res, 503, { message: "internal token refresh failed" });
       return;
     }
+    if (req.method === "GET" && req.url === "/api/status/H-TASK-RECLASSIFY") {
+      sendJson(res, 200, {
+        status: "completed",
+        paymentConfirmed: false,
+        logs: [
+          "[payment_confirm] payment succeeded",
+          "[renewal_cancellation] session refresh failed",
+          "[renewal_cancellation] renewal disabled on attempt 1",
+          "✅ 自动续费已取消"
+        ]
+      });
+      return;
+    }
+    if (req.method === "GET" && req.url === "/api/status/H-TASK-UNKNOWN") {
+      sendJson(res, 200, {
+        status: "running",
+        paymentConfirmed: true,
+        logs: ["[payment_confirm] payment succeeded"]
+      });
+      return;
+    }
     if (req.method === "POST" && req.url === "/admin-alert") {
       webhookPayloads.push(JSON.parse(await readBody(req)));
       sendJson(res, 200, { ok: true });
@@ -91,8 +112,8 @@ test("h subscription state is backfilled after payment success and alerts admini
   assert.equal(store.getOrder(order.id).subscriptionActionRequired, false);
   assert.equal(webhookPayloads.length, 0);
 
-  const failedSync = await rechargeService.reconcileHSubscriptionStatuses();
-  assert.equal(failedSync.checkedCount, 1);
+  const failedSync = await rechargeService.queryTaskStatus({ orderId: order.id }, { forceRefresh: true });
+  assert.equal(failedSync.ok, true);
   assert.equal(statusPollCount, 2);
   const failedOrder = store.getOrder(order.id);
   assert.equal(failedOrder.status, "success");
@@ -117,6 +138,40 @@ test("h subscription state is backfilled after payment success and alerts admini
 
   const finalSync = await rechargeService.reconcileHSubscriptionStatuses();
   assert.equal(finalSync.checkedCount, 0);
+  assert.equal(webhookPayloads.length, 1);
+
+  const misclassifiedOrder = store.createOrder({
+    provider: "h",
+    status: "success",
+    upstreamTaskId: "H-TASK-RECLASSIFY",
+    subscriptionCancellationStatus: "unknown",
+    subscriptionActionRequired: true,
+    subscriptionActionMessage: "充值成功，但自动续费状态未确认。",
+    message: "充值成功，但自动续费状态未确认。"
+  });
+  const correctedSync = await rechargeService.reconcileHSubscriptionStatuses();
+  assert.equal(correctedSync.checkedCount, 1);
+  const correctedOrder = store.getOrder(misclassifiedOrder.id);
+  assert.equal(correctedOrder.status, "success");
+  assert.equal(correctedOrder.subscriptionCancellationStatus, "cancelled");
+  assert.equal(correctedOrder.subscriptionActionRequired, false);
+  assert.equal(correctedOrder.subscriptionClassifierVersion, 2);
+  assert.match(correctedOrder.message, /自动续费已关闭/);
+  assert.equal(webhookPayloads.length, 1);
+
+  const unknownOrder = store.createOrder({
+    provider: "h",
+    status: "success",
+    upstreamTaskId: "H-TASK-UNKNOWN",
+    subscriptionCancellationStatus: "pending",
+    subscriptionFollowUpUntil: new Date(Date.now() - 1_000).toISOString(),
+    message: "充值成功，正在确认自动续费关闭结果。"
+  });
+  const unknown = await rechargeService.queryTaskStatus({ orderId: unknownOrder.id }, { forceRefresh: true });
+  assert.equal(unknown.ok, true);
+  assert.equal(unknown.data.subscriptionCancellationStatus, "unknown");
+  assert.equal(unknown.data.subscriptionActionRequired, false);
+  assert.match(unknown.data.message, /状态暂未确认/);
   assert.equal(webhookPayloads.length, 1);
 
   const transientOrder = store.createOrder({

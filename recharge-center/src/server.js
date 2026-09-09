@@ -315,6 +315,8 @@ function serveHCardAdmin(res) {
     .card a { display: block; margin-top: 5px; color: #2563eb; font-size: 13px; }
     .row-actions { display: flex; gap: 8px; }
     .row-actions button { min-height: 34px; padding: 0 10px; font-size: 13px; }
+    .attention-badge { display: inline-block; margin-top: 5px; padding: 3px 7px; border-radius: 999px; color: #9a3412; background: #ffedd5; font-size: 12px; font-weight: 900; }
+    tr.needs-attention { background: #fffaf0; }
     .row-actions button.danger { color: #9f1239; background: #fff1f2; border: 1px solid #fda4af; }
     .action-link { display: inline-flex; align-items: center; min-height: 44px; padding: 0 18px; border-radius: 10px; color: #0f766e; background: #ecfdf5; border: 1px solid #99f6e4; font-weight: 900; text-decoration: none; }
     .page-actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 14px; }
@@ -922,8 +924,8 @@ function serveRecoveryAdmin(res) {
       <div class="status" id="statusBox">输入管理密码后，可以查看全部充值记录。</div>
     </section>
     <section>
-      <div class="toolbar"><label>搜索记录<input id="recordSearch" type="search" placeholder="输入账号或卡密"></label><label>状态<select id="statusFilter"><option value="">全部状态</option><option value="processing">处理中</option><option value="success">成功</option><option value="failed">失败</option><option value="needs_review">待确认</option></select></label><label>通道<select id="providerFilter"><option value="">全部通道</option></select></label><span class="count" id="recoveryCount">0 条</span></div>
-      <p class="hint">“重新提交”会再次调用充值通道，只有确认上一次没有成功扣费时再使用；“标记成功”只修改本站显示状态，不会调用充值通道。</p>
+      <div class="toolbar"><label>搜索记录<input id="recordSearch" type="search" placeholder="输入账号或卡密"></label><label>状态<select id="statusFilter"><option value="">全部状态</option><option value="attention">需取消续费</option><option value="processing">处理中</option><option value="success">成功</option><option value="failed">失败</option><option value="needs_review">待确认</option></select></label><label>通道<select id="providerFilter"><option value="">全部通道</option></select></label><span class="count" id="recoveryCount">0 条</span></div>
+      <p class="hint">“需取消续费”表示充值已经成功，只需联系用户完成连续订阅处理；“重新提交”会再次调用充值通道，只有确认上一次没有成功扣费时再使用。</p>
       <div class="table-wrap">
         <table>
           <thead><tr><th>账号</th><th>卡密/通道</th><th>状态</th><th>结果说明</th><th>提交时间</th><th>操作</th></tr></thead>
@@ -971,22 +973,26 @@ function serveRecoveryAdmin(res) {
     }
     function renderRows(items) {
       if (!items.length) return '<tr><td class="empty" colspan="6">暂无匹配记录</td></tr>';
-      return items.map(item => '<tr>'
+      return items.map(item => '<tr class="' + (item.needsAttention ? 'needs-attention' : '') + '">'
         + '<td>' + escapeHtml(item.userEmail || "-") + '</td>'
         + '<td>' + escapeHtml(item.cardMask || "-") + '<br><small>通道 ' + escapeHtml(item.provider) + '</small></td>'
-        + '<td>' + escapeHtml(statusLabel(item.status)) + '</td>'
-        + '<td class="message">' + escapeHtml(item.message || "-") + '</td>'
+        + '<td>' + escapeHtml(statusLabel(item.status)) + (item.needsAttention ? '<br><span class="attention-badge">需取消续费</span>' : item.subscriptionCancellationStatus === 'cancelled' ? '<br><small>续费已关闭</small>' : '') + '</td>'
+        + '<td class="message">' + escapeHtml(item.needsAttention ? item.subscriptionActionMessage : item.message || "-") + '</td>'
         + '<td>' + escapeHtml(formatDate(item.createdAt)) + '</td>'
         + '<td><div class="row-actions">'
         + (item.hasOriginalJson ? '<button class="secondary" type="button" data-action="copy-json" data-order-id="' + escapeHtml(item.id) + '">复制JSON</button>' : '')
         + (["failed", "needs_review"].includes(item.status) ? '<button class="secondary" type="button" data-action="retry" data-order-id="' + escapeHtml(item.id) + '">重新提交</button><button type="button" data-action="mark-success" data-order-id="' + escapeHtml(item.id) + '">标记成功</button>' : '')
+        + (item.needsAttention ? '<button type="button" data-action="mark-subscription-handled" data-order-id="' + escapeHtml(item.id) + '">标记已处理</button>' : '')
         + '</div></td></tr>').join("");
     }
     function applyRecordFilters() {
       const keyword = document.getElementById("recordSearch").value.trim().toLowerCase();
       const status = document.getElementById("statusFilter").value;
       const provider = document.getElementById("providerFilter").value;
-      const records = allRecords.filter(item => (!keyword || [item.userEmail, item.cardMask].some(value => String(value || "").toLowerCase().includes(keyword))) && (!status || item.status === status) && (!provider || item.provider === provider));
+      const records = allRecords.filter(item => {
+        const matchesStatus = !status || (status === "attention" ? item.needsAttention : item.status === status);
+        return (!keyword || [item.userEmail, item.cardMask].some(value => String(value || "").toLowerCase().includes(keyword))) && matchesStatus && (!provider || item.provider === provider);
+      });
       document.getElementById("recoveries").innerHTML = renderRows(records);
       document.getElementById("recoveryCount").textContent = records.length + " / " + allRecords.length + " 条";
     }
@@ -1003,10 +1009,14 @@ function serveRecoveryAdmin(res) {
     }
     function notifyNew(items) {
       const fresh = items.filter(item => !previousIds.has(item.id));
-      if (!firstLoad && fresh.length) {
+      const alertItems = firstLoad ? fresh.filter(item => item.needsAttention) : fresh;
+      if (alertItems.length) {
         playAlert();
         if ("Notification" in window && Notification.permission === "granted") {
-          new Notification("GPTC 有新的待处理订单", { body: fresh.length + " 条充值订单需要跟进。" });
+          const subscriptionCount = alertItems.filter(item => item.needsAttention).length;
+          new Notification(subscriptionCount ? "GPTC 有自动续费需要处理" : "GPTC 有新的待处理订单", {
+            body: subscriptionCount ? subscriptionCount + " 笔充值成功，但自动续费未关闭。" : alertItems.length + " 条充值订单需要跟进。"
+          });
         }
       }
       previousIds = new Set(items.map(item => item.id));
@@ -1022,7 +1032,7 @@ function serveRecoveryAdmin(res) {
         providerSelect.innerHTML = '<option value="">全部通道</option>' + providers.map(value => '<option value="' + escapeHtml(value) + '">' + escapeHtml(value) + '</option>').join("");
         providerSelect.value = selectedProvider;
         applyRecordFilters();
-        const pending = allRecords.filter(item => ["failed", "needs_review"].includes(item.status));
+        const pending = allRecords.filter(item => ["failed", "needs_review"].includes(item.status) || item.needsAttention);
         notifyNew(pending);
         setStatus(data.pendingCount ? "共 " + allRecords.length + " 条记录，其中 " + data.pendingCount + " 条需要处理。" : "共 " + allRecords.length + " 条记录，当前没有待处理订单。");
       } catch (error) { setStatus(error.message, true); }
@@ -1032,7 +1042,11 @@ function serveRecoveryAdmin(res) {
         audioContext = new (window.AudioContext || window.webkitAudioContext)();
         await audioContext.resume();
         if ("Notification" in window) await Notification.requestPermission();
-        setStatus("桌面提醒已开启。页面保持打开时，会自动提示新的失败订单。", false);
+        const subscriptionCount = allRecords.filter(item => item.needsAttention).length;
+        if (subscriptionCount && "Notification" in window && Notification.permission === "granted") {
+          new Notification("GPTC 有自动续费需要处理", { body: subscriptionCount + " 笔充值成功，但自动续费未关闭。" });
+        }
+        setStatus(subscriptionCount ? "桌面提醒已开启，当前有 " + subscriptionCount + " 笔自动续费需要处理。" : "桌面提醒已开启。页面保持打开时，会提示新的失败订单和自动续费事项。", false);
         playAlert();
       } catch (error) { setStatus("提醒开启失败，请检查浏览器通知权限。", true); }
     });
@@ -1047,6 +1061,7 @@ function serveRecoveryAdmin(res) {
       const orderId = button.dataset.orderId;
       if (action === "retry" && !window.confirm("确认重新提交这笔充值？请先确认上一次没有成功扣费。")) return;
       if (action === "mark-success" && !window.confirm("确认这笔订单已经人工充值成功，并同步为成功状态？")) return;
+      if (action === "mark-subscription-handled" && !window.confirm("确认已经联系用户并完成自动续费处理？")) return;
       button.disabled = true;
       try {
         if (action === "copy-json") {
@@ -1054,9 +1069,9 @@ function serveRecoveryAdmin(res) {
           await navigator.clipboard.writeText(detail.secretJsonText || "");
           setStatus("JSON 已复制到剪贴板，请注意不要转发给无关人员。");
         } else {
-          const endpoint = action === "retry" ? "retry" : "mark-success";
+          const endpoint = action === "retry" ? "retry" : action === "mark-success" ? "mark-success" : "mark-subscription-handled";
           const data = await api("/api/admin/recoveries/" + encodeURIComponent(orderId) + "/" + endpoint, { method: "POST", body: JSON.stringify({}) });
-          setStatus(action === "retry" ? (data.message || "已重新提交，正在处理。"): "已同步为充值成功。");
+          setStatus(action === "retry" ? (data.message || "已重新提交，正在处理。") : action === "mark-success" ? "已同步为充值成功。" : "已标记为人工处理完成。");
           await loadRecoveries();
         }
       } catch (error) { setStatus(error.message, true); }
@@ -1359,7 +1374,7 @@ export const server = http.createServer(async (req, res) => {
       return;
     }
 
-    const recoveryAction = url.pathname.match(/^\/api\/admin\/recoveries\/([^/]+)\/(retry|mark-success)$/);
+    const recoveryAction = url.pathname.match(/^\/api\/admin\/recoveries\/([^/]+)\/(retry|mark-success|mark-subscription-handled)$/);
     if (req.method === "POST" && recoveryAction) {
       const body = await readJsonBody(req);
       const auth = assertAdmin(req, url, body);
@@ -1371,7 +1386,9 @@ export const server = http.createServer(async (req, res) => {
       const action = recoveryAction[2];
       const result = action === "retry"
         ? await rechargeService.retryRecovery(orderId, "admin")
-        : rechargeService.markRecoverySuccess(orderId, "admin", body.message || "人工充值成功，系统已同步完成。");
+        : action === "mark-success"
+          ? rechargeService.markRecoverySuccess(orderId, "admin", body.message || "人工充值成功，系统已同步完成。")
+          : rechargeService.markHSubscriptionHandled(orderId, "admin");
       sendJson(res, result.status, result.ok ? { success: true, data: result.data } : { success: false, message: result.message, data: result.data });
       return;
     }
@@ -1494,4 +1511,18 @@ if (isMainModule) {
   server.listen(config.port, config.host, () => {
     console.log(`Recharge center MVP listening on http://${config.host}:${config.port}`);
   });
+  let hSubscriptionSyncRunning = false;
+  const runHSubscriptionSync = async () => {
+    if (hSubscriptionSyncRunning) return;
+    hSubscriptionSyncRunning = true;
+    try {
+      await rechargeService.reconcileHSubscriptionStatuses();
+    } finally {
+      hSubscriptionSyncRunning = false;
+    }
+  };
+  const initialSyncTimer = setTimeout(runHSubscriptionSync, 5000);
+  const syncTimer = setInterval(runHSubscriptionSync, Math.max(Number(config.hSubscriptionSyncIntervalMs) || 15000, 5000));
+  initialSyncTimer.unref?.();
+  syncTimer.unref?.();
 }

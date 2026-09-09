@@ -58,6 +58,80 @@ function publicHCardMessage(status) {
   return "这张卡密当前不可使用，请联系客服处理。";
 }
 
+function subscriptionPublicData(order = {}) {
+  const needsAttention = Boolean(order.subscriptionActionRequired && !order.subscriptionActionHandledAt);
+  return {
+    subscriptionCancellationStatus: order.subscriptionCancellationStatus || "",
+    subscriptionActionRequired: needsAttention,
+    subscriptionActionMessage: needsAttention
+      ? order.subscriptionActionMessage || "充值成功，但自动续费未关闭，请手动取消连续订阅。"
+      : ""
+  };
+}
+
+function hSubscriptionPatch(order, taskData, nextStatus) {
+  if (order?.provider !== "h" || nextStatus !== "success" || (taskData.paymentConfirmed !== true && order.status !== "success")) return {};
+  const now = new Date();
+  const configuredStatus = taskData.paymentConfirmed === true
+    ? taskData.subscriptionCancellationStatus || (taskData.autoCancelDone === true ? "cancelled" : "pending")
+    : order.subscriptionCancellationStatus || "pending";
+  const existingDeadline = Date.parse(order.subscriptionFollowUpUntil);
+  const deadline = Number.isFinite(existingDeadline)
+    ? existingDeadline
+    : now.getTime() + Math.max(Number(config.hSubscriptionFollowUpSeconds) || 120, 30) * 1000;
+  const timedOut = configuredStatus === "pending" && now.getTime() >= deadline;
+  const status = timedOut ? "unknown" : configuredStatus;
+  const actionRequired = status === "failed" || status === "unknown";
+  const actionMessage = status === "failed"
+    ? "充值成功，但自动续费未关闭，请联系用户手动取消连续订阅。"
+    : status === "unknown"
+      ? "充值成功，但自动续费状态未确认，请联系用户检查并手动取消连续订阅。"
+      : "";
+  return {
+    subscriptionCancellationStatus: status,
+    subscriptionActionRequired: actionRequired,
+    subscriptionActionMessage: actionMessage,
+    subscriptionActionDetectedAt: actionRequired ? order.subscriptionActionDetectedAt || now.toISOString() : "",
+    subscriptionFollowUpUntil: new Date(deadline).toISOString(),
+    lastStatusSyncAt: now.toISOString(),
+    ...(status === "cancelled" ? {
+      subscriptionActionRequired: false,
+      subscriptionActionMessage: "",
+      subscriptionActionDetectedAt: ""
+    } : {})
+  };
+}
+
+function hSubscriptionMessage(defaultMessage, patch) {
+  if (patch.subscriptionCancellationStatus === "failed") return "充值成功，但自动续费关闭失败，请用户手动关闭自动续费。";
+  if (patch.subscriptionCancellationStatus === "unknown") return "充值成功，但自动续费状态未确认，请用户手动检查并关闭自动续费。";
+  if (patch.subscriptionCancellationStatus === "cancelled") return "充值成功，自动续费已关闭。";
+  if (patch.subscriptionCancellationStatus === "pending") return "充值成功，正在确认自动续费关闭结果。";
+  return defaultMessage;
+}
+
+function adminAlertWebhookPayload(record) {
+  const text = [
+    "【GPTC 需处理】充值成功但自动续费未关闭",
+    `账号：${record.userEmail || "未知"}`,
+    `卡密：${record.cardMask || "未知"}`,
+    `提交时间：${record.createdAt || "未知"}`,
+    "请联系用户进入头像 → 设置 → 账户 → 订阅管理，手动取消连续订阅。",
+    `${String(config.publicBaseUrl || "https://www.gptc.cc").replace(/\/$/, "")}/admin/recoveries`
+  ].join("\n");
+  const type = String(config.adminAlertWebhookType || "generic").toLowerCase();
+  if (type === "wecom" || type === "dingtalk") return { msgtype: "text", text: { content: text } };
+  if (type === "feishu") return { msg_type: "text", content: { text } };
+  return {
+    event: "h_subscription_cancellation_required",
+    account: record.userEmail || "",
+    cardMask: record.cardMask || "",
+    createdAt: record.createdAt || "",
+    message: "充值成功，但自动续费未关闭，需要人工跟进。",
+    adminUrl: `${String(config.publicBaseUrl || "https://www.gptc.cc").replace(/\/$/, "")}/admin/recoveries`
+  };
+}
+
 function simplifyHCardFailure(message) {
   const value = String(message || "");
   if (/余额|可用卡|卡池|card.*(?:unavailable|balance)/i.test(value)) return "嗨付卡池暂不可用";
@@ -338,7 +412,12 @@ export const rechargeService = {
         statusLabel: H_CARD_STATUS_LABELS[record.status],
         boundAccount: maskedBoundAccount(record),
         canRecharge: record.status === "unused",
-        message: publicHCardMessage(record.status)
+        message: record.subscriptionActionRequired
+          ? "充值已经成功，但自动续费未关闭，请手动取消连续订阅。"
+          : publicHCardMessage(record.status),
+        subscriptionCancellationStatus: record.subscriptionCancellationStatus,
+        subscriptionActionRequired: record.subscriptionActionRequired,
+        subscriptionActionMessage: record.subscriptionActionMessage
       }
     };
   },
@@ -472,9 +551,59 @@ export const rechargeService = {
       data: {
         records,
         totalCount: records.length,
-        pendingCount: records.filter(item => ["failed", "needs_review"].includes(item.status)).length
+        pendingCount: records.filter(item => ["failed", "needs_review"].includes(item.status) || item.needsAttention).length
       }
     };
+  },
+
+  markHSubscriptionHandled(orderId, operator = "admin") {
+    const result = store.markHSubscriptionHandled(orderId, operator);
+    return {
+      ok: result.ok,
+      status: result.ok ? 200 : result.status === "not_found" ? 404 : 409,
+      data: result.ok ? { orderId: result.orderId, handledAt: result.handledAt } : undefined,
+      message: result.message
+    };
+  },
+
+  async dispatchHSubscriptionAlerts() {
+    if (!requiredString(config.adminAlertWebhookUrl)) return { sentCount: 0, skipped: true };
+    const pending = store.listPendingHSubscriptionAlerts();
+    let sentCount = 0;
+    for (const record of pending) {
+      let notified = false;
+      try {
+        const response = await fetch(config.adminAlertWebhookUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(adminAlertWebhookPayload(record))
+        });
+        notified = response.ok;
+      } catch {
+        notified = false;
+      }
+      store.markHSubscriptionAlertAttempt(record.id, notified);
+      if (notified) sentCount += 1;
+    }
+    return { sentCount, skipped: false };
+  },
+
+  async reconcileHSubscriptionStatuses() {
+    const orders = store.listHOrdersForSubscriptionSync({
+      lookbackHours: config.hSubscriptionSyncLookbackHours,
+      limit: 20
+    });
+    let updatedCount = 0;
+    for (const order of orders) {
+      try {
+        const result = await this.queryTaskStatus({ orderId: order.id }, { forceRefresh: true });
+        if (result.ok) updatedCount += 1;
+      } catch {
+        // 单笔同步失败不影响其他订单，下一轮会继续尝试。
+      }
+    }
+    const alerts = await this.dispatchHSubscriptionAlerts();
+    return { checkedCount: orders.length, updatedCount, alertSentCount: alerts.sentCount };
   },
 
   getRecoverySubmission(orderId, reveal = false) {
@@ -760,6 +889,7 @@ export const rechargeService = {
       providerSessionId: input.providerSessionId || "",
       cardInfoCiphertext: encryptProtected(cardInfo.trim(), "recharge-card-info"),
       overwriteRecharge,
+      subscriptionCancellationStatus: selectedProvider === "h" ? "not_started" : "",
       status: "processing",
       message: `任务已创建，等待${providerData.providerLabel}处理。`
     });
@@ -873,7 +1003,7 @@ export const rechargeService = {
     });
   },
 
-  async queryTaskStatus(input) {
+  async queryTaskStatus(input, options = {}) {
     const order = requiredString(input.orderId)
       ? store.getOrder(input.orderId)
       : requiredString(input.taskId)
@@ -881,7 +1011,8 @@ export const rechargeService = {
         : null;
     const taskId = order?.upstreamTaskId || input.taskId || "";
 
-    if (order?.status === "success") {
+    const hSubscriptionPending = order?.provider === "h" && order.subscriptionCancellationStatus === "pending";
+    if (order?.status === "success" && !options.forceRefresh && !hSubscriptionPending) {
       return {
         ok: true,
         status: 200,
@@ -890,6 +1021,7 @@ export const rechargeService = {
           taskId,
           status: "success",
           message: order.message,
+          ...subscriptionPublicData(order),
           ...normalizedProviderData(order.provider)
         }
       };
@@ -905,6 +1037,7 @@ export const rechargeService = {
             taskId: "",
             status: order.status,
             message: order.message,
+            ...subscriptionPublicData(order),
             ...normalizedProviderData(order.provider)
           }
         };
@@ -923,8 +1056,10 @@ export const rechargeService = {
     const taskData = selectedProvider === "czgpt"
       ? await reconcileCzgptStatus(adapter, upstream.data || {}, input.cardInfo || "")
       : upstream.data || {};
-    const nextStatus = taskData.status || "processing";
-    const message = taskData.message || "";
+    const reportedStatus = taskData.status || "processing";
+    const nextStatus = selectedProvider === "h" && order?.status === "success" ? "success" : reportedStatus;
+    const subscriptionPatch = hSubscriptionPatch(order, taskData, nextStatus);
+    const message = hSubscriptionMessage(taskData.message || "", subscriptionPatch);
 
     if (order) {
       if (selectedProvider === "h" && order.hCardId) {
@@ -936,7 +1071,8 @@ export const rechargeService = {
       if (
         selectedProvider === "h" &&
         order.hifupayCardId &&
-        ["success", "failed", "needs_review"].includes(nextStatus)
+        ["success", "failed", "needs_review"].includes(nextStatus) &&
+        (nextStatus !== "success" || order.status !== "success")
       ) {
         if (nextStatus === "success" && taskData.paymentConfirmed === true && typeof adapter.listCards === "function") {
           try {
@@ -960,7 +1096,9 @@ export const rechargeService = {
 
       store.updateOrder(order.id, {
         status: nextStatus,
-        message
+        message,
+        ...subscriptionPatch,
+        lastStatusSyncAt: subscriptionPatch.lastStatusSyncAt || new Date().toISOString()
       });
 
       store.addLog({
@@ -999,6 +1137,7 @@ export const rechargeService = {
         usedAt: taskData.usedAt || "",
         queueAhead: taskData.queueAhead ?? null,
         remainingSeconds: taskData.remainingSeconds ?? null,
+        ...subscriptionPublicData({ ...order, ...subscriptionPatch }),
         ...normalizedProviderData(selectedProvider)
       }
     };

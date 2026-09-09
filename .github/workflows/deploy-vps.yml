@@ -54,6 +54,8 @@ jobs:
           PANEL_TARGET_DIR: ${{ secrets.PANEL_TARGET_DIR }}
           ADMIN_TOKEN: ${{ secrets.ADMIN_TOKEN }}
           HIFUPAY_API_KEY: ${{ secrets.HIFUPAY_API_KEY }}
+          ADMIN_ALERT_WEBHOOK_URL: ${{ secrets.ADMIN_ALERT_WEBHOOK_URL }}
+          ADMIN_ALERT_WEBHOOK_TYPE: ${{ secrets.ADMIN_ALERT_WEBHOOK_TYPE }}
         run: |
           node ./scripts/deploy-recharge-backend-1panel.mjs
 

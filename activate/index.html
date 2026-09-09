@@ -530,6 +530,17 @@
       background: rgba(255,255,255,0.58);
       border: 1px solid rgba(15, 23, 42, 0.08);
     }
+    .subscription-warning, .subscription-pending, .subscription-ok {
+      padding: 12px 14px !important;
+      border: 1px solid #fdba74 !important;
+      background: #fff7ed !important;
+      color: #9a3412;
+      line-height: 1.7;
+    }
+    .subscription-warning strong, .subscription-pending strong, .subscription-ok strong { display: block; margin-bottom: 4px; }
+    .subscription-warning ol { margin: 6px 0 0; padding-left: 22px; }
+    .subscription-pending { border-color: #93c5fd !important; background: #eff6ff !important; color: #1e40af; }
+    .subscription-ok { border-color: #86efac !important; background: #f0fdf4 !important; color: #166534; }
     .support-box {
       margin-top: 18px;
       padding: 16px 18px;
@@ -980,6 +991,10 @@ window._hmt = _hmt;
                 <div class="kv"><span>充值激活码</span><span id="confirmCard">-</span></div>
                 <div class="kv"><span>充值通道</span><span id="confirmChannel">通道一</span></div>
               </div>
+              <div class="tip-box" id="hSubscriptionReminder" hidden>
+                <strong>关于连续订阅</strong>
+                系统会尝试自动关闭连续订阅。如果充值结果提示未关闭，请进入 ChatGPT“头像 → 设置 → 账户 → 订阅管理”手动取消。取消后，本月 Plus 仍可正常使用，到期后不再自动续费。
+              </div>
               <label class="checkbox">
                 <input type="checkbox" id="overwriteRecharge" onchange="updateConfirmButtonState()">
                 <span>我确认账号和激活码无误<br><small>提交后系统自动查询结果</small></span>
@@ -1151,6 +1166,8 @@ window._hmt = _hmt;
       document.body.classList.toggle("provider-czgpt", normalized === "czgpt");
       document.body.classList.toggle("provider-j", normalized === "j");
       document.body.classList.toggle("provider-h", normalized === "h");
+      const reminder = document.getElementById("hSubscriptionReminder");
+      if (reminder) reminder.hidden = normalized !== "h";
     }
 
     function setCurrentProvider(provider, options = {}) {
@@ -1275,7 +1292,28 @@ window._hmt = _hmt;
       `;
     }
 
-    function renderResultBox(type, message) {
+    function subscriptionResultHtml(task = {}) {
+      if (currentProvider !== "h") return "";
+      if (task.subscriptionActionRequired) {
+        return `
+          <div class="subscription-warning">
+            <strong>需要手动取消连续订阅</strong>
+            本次充值已经成功，但系统未能确认自动续费已关闭。请登录 ChatGPT 后依次进入：
+            <ol><li>点击头像并打开“设置”</li><li>进入“账户”与“订阅管理”</li><li>选择取消连续包月计划</li></ol>
+            取消后，本月 Plus 仍可正常使用，到期后不再自动续费。
+          </div>
+        `;
+      }
+      if (task.subscriptionCancellationStatus === "pending") {
+        return '<div class="subscription-pending"><strong>正在确认自动续费状态</strong>充值已经成功，页面会继续同步关闭自动续费的结果，请暂时不要关闭页面。</div>';
+      }
+      if (task.subscriptionCancellationStatus === "cancelled") {
+        return '<div class="subscription-ok"><strong>自动续费已关闭</strong>本次充值已完成，无需再处理连续订阅。</div>';
+      }
+      return "";
+    }
+
+    function renderResultBox(type, message, task = {}) {
       const resultBox = document.getElementById("resultBox");
       const accountEmail = document.getElementById("confirmEmail")?.textContent?.trim() || "-";
       const success = type === "success";
@@ -1293,6 +1331,7 @@ window._hmt = _hmt;
           </div>
           <div class="result-actions">
             <div class="result-detail"><span>充值账号</span><strong>${escapeHtml(accountEmail)}</strong></div>
+            ${subscriptionResultHtml(task)}
             ${cardStatusToolsHtml()}
           </div>
         `
@@ -1418,12 +1457,16 @@ window._hmt = _hmt;
           const result = data.data || {};
           const account = result.boundAccount ? ` 绑定账号：${result.boundAccount}。` : "";
           const nextStep = result.canRecharge ? " 你可以点击“验证激活码”继续充值。" : "";
+          const subscriptionStep = result.subscriptionActionRequired
+            ? " 请登录 ChatGPT，依次进入“头像 → 设置 → 账户 → 订阅管理”，手动取消连续包月计划；取消后本月 Plus 仍然有效，到期后不再自动续费。"
+            : "";
           const noticeType = result.status === "failed" || result.status === "disabled"
             ? "error"
-            : result.status === "unused" || result.status === "success"
+            : (result.status === "unused" || result.status === "success") && !result.subscriptionActionRequired
               ? "success"
               : "info";
-          setNotice("step1Notice", result.statusLabel || "卡密状态", (result.message || "查询完成。") + account + nextStep, noticeType);
+          const title = result.subscriptionActionRequired ? "充值成功，需取消连续订阅" : result.statusLabel || "卡密状态";
+          setNotice("step1Notice", title, (result.message || "查询完成。") + account + nextStep + subscriptionStep, noticeType);
         } else if (currentProvider === "xiaoyu") {
           const data = await postJson("/api/recharge/query-task-status", {
             taskId: cardInfo,
@@ -1698,7 +1741,8 @@ window._hmt = _hmt;
           return;
         }
         if (task.status === "success") {
-          renderResultBox("success", mapRechargeMessage(task.message, task.status));
+          renderResultBox("success", mapRechargeMessage(task.message, task.status), task);
+          if (currentProvider === "h" && task.subscriptionCancellationStatus === "pending") schedulePoll(4000);
         } else if (task.status === "syncing") {
           renderResultBox("syncing", mapRechargeMessage(task.message, task.status));
           schedulePoll(10000);

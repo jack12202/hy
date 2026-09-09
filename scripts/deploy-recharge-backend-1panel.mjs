@@ -6,6 +6,8 @@ const PANEL_USER = process.env.PANEL_USER;
 const PANEL_PASS = process.env.PANEL_PASS;
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN;
 const HIFUPAY_API_KEY = process.env.HIFUPAY_API_KEY;
+const ADMIN_ALERT_WEBHOOK_URL = process.env.ADMIN_ALERT_WEBHOOK_URL || "";
+const ADMIN_ALERT_WEBHOOK_TYPE = process.env.ADMIN_ALERT_WEBHOOK_TYPE || "generic";
 const PANEL_TARGET_DIR = process.env.PANEL_TARGET_DIR || "";
 const API_PREFIX = "/api/v1";
 
@@ -214,6 +216,8 @@ function shellQuote(value) {
 function buildDeployScript() {
   const adminToken = envFileValue(ADMIN_TOKEN);
   const hifupayApiKey = envFileValue(HIFUPAY_API_KEY);
+  const adminAlertWebhookUrl = envFileValue(ADMIN_ALERT_WEBHOOK_URL);
+  const adminAlertWebhookType = envFileValue(ADMIN_ALERT_WEBHOOK_TYPE);
   const staticTargetDir = shellQuote(PANEL_TARGET_DIR);
   return `#!/bin/sh
 set -eu
@@ -260,6 +264,9 @@ PORT=8788
 DEFAULT_PROVIDER=czgpt
 ADMIN_TOKEN=${adminToken}
 HIFUPAY_API_KEY=${hifupayApiKey}
+ADMIN_ALERT_WEBHOOK_URL=${adminAlertWebhookUrl}
+ADMIN_ALERT_WEBHOOK_TYPE=${adminAlertWebhookType}
+PUBLIC_BASE_URL=https://www.gptc.cc
 AYAN_BASE_URL=https://api.987ai.vip
 AJIAN_BASE_URL=https://ajian.chat
 UPSTREAM_BASE_URL=https://kkk.ow800.com

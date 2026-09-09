@@ -193,6 +193,16 @@ export class JsonStore {
       providerSessionId: input.providerSessionId || "",
       cardInfoCiphertext: input.cardInfoCiphertext || "",
       message: input.message || "",
+      subscriptionCancellationStatus: input.subscriptionCancellationStatus || "",
+      subscriptionActionRequired: Boolean(input.subscriptionActionRequired),
+      subscriptionActionMessage: input.subscriptionActionMessage || "",
+      subscriptionActionDetectedAt: input.subscriptionActionDetectedAt || "",
+      subscriptionActionHandledAt: input.subscriptionActionHandledAt || "",
+      subscriptionActionHandledBy: input.subscriptionActionHandledBy || "",
+      subscriptionAlertAttemptedAt: input.subscriptionAlertAttemptedAt || "",
+      subscriptionAlertNotifiedAt: input.subscriptionAlertNotifiedAt || "",
+      subscriptionFollowUpUntil: input.subscriptionFollowUpUntil || "",
+      lastStatusSyncAt: input.lastStatusSyncAt || "",
       overwriteRecharge: Boolean(input.overwriteRecharge),
       createdAt: nowIso(),
       updatedAt: nowIso()
@@ -219,6 +229,72 @@ export class JsonStore {
   getOrderByUpstreamTaskId(upstreamTaskId) {
     const state = this.read();
     return state.orders.find((item) => item.upstreamTaskId === upstreamTaskId) || null;
+  }
+
+  listHOrdersForSubscriptionSync({ lookbackHours = 72, processingHours = 6, limit = 20 } = {}) {
+    const now = Date.now();
+    const successCutoff = now - Math.max(Number(lookbackHours) || 72, 1) * 60 * 60 * 1000;
+    const processingCutoff = now - Math.max(Number(processingHours) || 6, 1) * 60 * 60 * 1000;
+    return this.read().orders
+      .filter(order => {
+        if (order.provider !== "h" || !order.upstreamTaskId) return false;
+        const createdAt = Date.parse(order.createdAt);
+        if (["created", "queued", "processing", "needs_review"].includes(order.status)) {
+          return Number.isFinite(createdAt) && createdAt >= processingCutoff;
+        }
+        if (order.status !== "success") return false;
+        const cancellationStatus = order.subscriptionCancellationStatus || "";
+        if (["cancelled", "failed", "unknown"].includes(cancellationStatus)) return false;
+        return Number.isFinite(createdAt) && createdAt >= successCutoff;
+      })
+      .sort((left, right) => String(left.lastStatusSyncAt || left.updatedAt || left.createdAt).localeCompare(String(right.lastStatusSyncAt || right.updatedAt || right.createdAt)))
+      .slice(0, Math.max(Number(limit) || 20, 1))
+      .map(order => ({ id: order.id, status: order.status, subscriptionFollowUpUntil: order.subscriptionFollowUpUntil || "" }));
+  }
+
+  markHSubscriptionHandled(orderId, operator = "admin") {
+    const state = this.read();
+    const order = state.orders.find(item => item.id === orderId);
+    if (!order) return { ok: false, status: "not_found", message: "订单不存在。" };
+    if (order.provider !== "h" || !order.subscriptionActionRequired) {
+      return { ok: false, status: "not_required", message: "这笔订单没有待处理的自动续费提醒。" };
+    }
+    order.subscriptionActionHandledAt = order.subscriptionActionHandledAt || nowIso();
+    order.subscriptionActionHandledBy = operator;
+    order.updatedAt = nowIso();
+    this.write(state);
+    return { ok: true, status: "handled", orderId: order.id, handledAt: order.subscriptionActionHandledAt };
+  }
+
+  listPendingHSubscriptionAlerts(retryMinutes = 5) {
+    const state = this.read();
+    const sessions = new Map(state.rechargeSessions.map(session => [session.orderId, session]));
+    const retryCutoff = Date.now() - Math.max(Number(retryMinutes) || 5, 1) * 60 * 1000;
+    return state.orders
+      .filter(order => {
+        if (order.provider !== "h" || !order.subscriptionActionRequired || order.subscriptionActionHandledAt || order.subscriptionAlertNotifiedAt) return false;
+        const attemptedAt = Date.parse(order.subscriptionAlertAttemptedAt);
+        return !Number.isFinite(attemptedAt) || attemptedAt <= retryCutoff;
+      })
+      .map(order => ({
+        id: order.id,
+        userEmail: sessions.get(order.id)?.userEmail || "",
+        cardMask: order.cardMask || "",
+        createdAt: order.createdAt || "",
+        message: order.subscriptionActionMessage || "充值成功，但自动续费未关闭，请联系用户手动取消。"
+      }));
+  }
+
+  markHSubscriptionAlertAttempt(orderId, notified = false) {
+    const state = this.read();
+    const order = state.orders.find(item => item.id === orderId);
+    if (!order) return false;
+    const timestamp = nowIso();
+    order.subscriptionAlertAttemptedAt = timestamp;
+    if (notified) order.subscriptionAlertNotifiedAt = timestamp;
+    order.updatedAt = timestamp;
+    this.write(state);
+    return true;
   }
 
   getSettings() {
@@ -670,7 +746,12 @@ export class JsonStore {
         createdAt: card.createdAt || "",
         submittedAt: card.submittedAt || card.boundAt || "",
         completedAt: hCardCompletedAt(card, order, status),
-        failureMessage: status === "failed" ? order?.message || "" : ""
+        failureMessage: status === "failed" ? order?.message || "" : "",
+        subscriptionCancellationStatus: order?.subscriptionCancellationStatus || "",
+        subscriptionActionRequired: Boolean(order?.subscriptionActionRequired && !order?.subscriptionActionHandledAt),
+        subscriptionActionMessage: order?.subscriptionActionRequired && !order?.subscriptionActionHandledAt
+          ? order.subscriptionActionMessage || "需要手动取消连续订阅。"
+          : ""
       };
     });
   }
@@ -919,6 +1000,12 @@ export class JsonStore {
           providerSessionId: order.providerSessionId || "",
           userEmail: session?.userEmail || "",
           message: order.message || "",
+          subscriptionCancellationStatus: order.subscriptionCancellationStatus || "",
+          subscriptionActionRequired: Boolean(order.subscriptionActionRequired),
+          subscriptionActionMessage: order.subscriptionActionMessage || "",
+          subscriptionActionDetectedAt: order.subscriptionActionDetectedAt || "",
+          subscriptionActionHandledAt: order.subscriptionActionHandledAt || "",
+          needsAttention: Boolean(order.subscriptionActionRequired && !order.subscriptionActionHandledAt),
           createdAt: order.createdAt,
           updatedAt: order.updatedAt,
           hasSecret: Boolean(session?.authDataCiphertext || session?.authDataEncoded),

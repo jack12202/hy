@@ -25,7 +25,13 @@ test("h card query APIs are read-only, authenticated where required, and rate li
   const successReservation = store.reserveHCard(cards[3].code, successOrder.id, { email: "success@example.com", accountId: "account_success" });
   assert.equal(successReservation.ok, true);
   assert.equal(store.completeHCard(successReservation.cardId, successOrder.id), true);
-  store.updateOrder(successOrder.id, { status: "success", message: "充值成功" });
+  store.updateOrder(successOrder.id, {
+    status: "success",
+    message: "充值成功，但自动续费关闭失败。",
+    subscriptionCancellationStatus: "failed",
+    subscriptionActionRequired: true,
+    subscriptionActionMessage: "充值成功，但自动续费未关闭，请联系用户手动取消连续订阅。"
+  });
 
   const failedOrder = store.createOrder({ provider: "h", status: "processing" });
   assert.equal(store.reserveHCard(cards[4].code, failedOrder.id, { email: "failed@example.com" }).ok, true);
@@ -74,11 +80,24 @@ test("h card query APIs are read-only, authenticated where required, and rate li
     assert.equal(payload.success, true);
     assert.equal(payload.data.status, expectedStatus);
     assert.equal(payload.data.canRecharge, expectedStatus === "unused");
-    assert.deepEqual(Object.keys(payload.data).sort(), ["boundAccount", "canRecharge", "message", "status", "statusLabel"]);
+    assert.deepEqual(Object.keys(payload.data).sort(), [
+      "boundAccount",
+      "canRecharge",
+      "message",
+      "status",
+      "statusLabel",
+      "subscriptionActionMessage",
+      "subscriptionActionRequired",
+      "subscriptionCancellationStatus"
+    ]);
   }
 
   const successQuery = await post("/api/recharge/h-card-status", { provider: "h", cardInfo: cards[3].code }, { ip: "198.51.100.20" });
   assert.equal(successQuery.payload.data.boundAccount, "s***@example.com");
+  assert.equal(successQuery.payload.data.status, "success");
+  assert.equal(successQuery.payload.data.subscriptionCancellationStatus, "failed");
+  assert.equal(successQuery.payload.data.subscriptionActionRequired, true);
+  assert.match(successQuery.payload.data.message, /手动取消连续订阅/);
   assert.equal(JSON.stringify(successQuery.payload).includes("success@example.com"), false);
   assert.equal(JSON.stringify(successQuery.payload).includes(successOrder.id), false);
 
@@ -93,6 +112,8 @@ test("h card query APIs are read-only, authenticated where required, and rate li
 
   const unauthorized = await post("/api/admin/h-cards/query", { inputs: [cards[0].code] });
   assert.equal(unauthorized.response.status, 401);
+  const unauthorizedHandled = await post(`/api/admin/recoveries/${successOrder.id}/mark-subscription-handled`, {});
+  assert.equal(unauthorizedHandled.response.status, 401);
 
   const mixed = await post("/api/admin/h-cards/query", {
     inputs: [

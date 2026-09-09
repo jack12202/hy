@@ -131,14 +131,20 @@ test("hifupay adapter submits Plus PH tasks and normalizes polling status", asyn
   const processing = await hifupayAdapter.queryTaskStatus({ taskId: "H-TASK-1" });
   assert.equal(processing.data.status, "processing");
   assert.equal(processing.data.paymentConfirmed, false);
+  assert.equal(processing.data.subscriptionCancellationStatus, "not_started");
+  assert.equal(processing.data.subscriptionActionRequired, false);
 
   const completed = await hifupayAdapter.queryTaskStatus({ taskId: "H-TASK-1" });
   assert.equal(completed.data.status, "success");
   assert.equal(completed.data.account, "test@example.com");
   assert.equal(completed.data.autoCancelDone, true);
+  assert.equal(completed.data.subscriptionCancellationStatus, "cancelled");
+  assert.equal(completed.data.subscriptionActionRequired, false);
   const cancellationWarning = await hifupayAdapter.queryTaskStatus({ taskId: "H-TASK-1" });
   assert.equal(cancellationWarning.data.status, "success");
   assert.equal(cancellationWarning.data.paymentConfirmed, true);
+  assert.equal(cancellationWarning.data.subscriptionCancellationStatus, "failed");
+  assert.equal(cancellationWarning.data.subscriptionActionRequired, true);
   assert.match(cancellationWarning.data.message, /自动续费关闭失败/);
   assert.equal(new JsonStore(dataFile).completeHCard(card.id, "order_h_test"), true);
   assert.equal(new JsonStore(dataFile).getHCardByCode(card.code).status, "used");

@@ -78,6 +78,14 @@ function normalizeStatus(raw) {
   const logText = logs.map(item => typeof item === "string" ? item : JSON.stringify(item)).join("\n");
   const paymentSucceeded = body.paymentConfirmed === true || /payment succeeded|支付成功|充值已成功/i.test(logText);
   const cancellationFailed = /取消自动续费失败|关闭自动续费失败|renewal_cancellation.*(?:fail|404)/i.test(logText);
+  const cancellationSucceeded = body.autoCancelDone === true || /(?:取消自动续费|关闭自动续费|renewal_cancellation).*(?:成功|success|done)/i.test(logText);
+  const subscriptionCancellationStatus = !paymentSucceeded
+    ? "not_started"
+    : cancellationFailed
+      ? "failed"
+      : cancellationSucceeded
+        ? "cancelled"
+        : "pending";
   const status = paymentSucceeded
     ? "success"
     : upstreamStatus === "completed"
@@ -94,12 +102,18 @@ function normalizeStatus(raw) {
     providerLabel: "h",
     status,
     upstreamStatus,
-    message: paymentSucceeded && cancellationFailed
-      ? "充值成功，但自动续费关闭失败，请用户手动关闭自动续费。"
-      : body.error || body.message || (status === "success" ? "充值成功。" : "充值处理中，请稍候。"),
+    message: paymentSucceeded
+      ? subscriptionCancellationStatus === "failed"
+        ? "充值成功，但自动续费关闭失败，请用户手动关闭自动续费。"
+        : subscriptionCancellationStatus === "cancelled"
+          ? "充值成功，自动续费已关闭。"
+          : "充值成功，正在确认自动续费关闭结果。"
+      : body.error || body.message || "充值处理中，请稍候。",
     account: typeof body.account === "string" ? body.account : "",
     paymentConfirmed: paymentSucceeded,
     autoCancelDone: body.autoCancelDone === true,
+    subscriptionCancellationStatus,
+    subscriptionActionRequired: subscriptionCancellationStatus === "failed",
     logs,
     raw: body
   };
